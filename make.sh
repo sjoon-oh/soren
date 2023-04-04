@@ -10,11 +10,11 @@
 cmake -S . -B build
 # make -f build/Makefile libhartebeest
 
-cd ./build && make -j 32
+cd ./build && make -j 32 hartebeest
 
 if [ ! -d "out" ]; then
     mkdir -p out
 fi
 
 cp ../hartebeest/build/libhartebeest.so ./out
-
+make -j 32 all

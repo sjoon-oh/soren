@@ -14,6 +14,15 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_VERBOSE_MAKEFILE true)
 
+#
+# Hartebeest subdir
+add_subdirectory(
+    ${CMAKE_SOURCE_DIR}/hartebeest
+    ${CMAKE_SOURCE_DIR}/hartebeest/build
+    )
+
+include_directories(${CMAKE_SOURCE_DIR}/hartebeest/src)
+
 # External dependencies.
 include_directories(${CMAKE_SOURCE_DIR}/extern)
 
@@ -31,12 +40,7 @@ set_target_properties(
 )
 
 # Essentials
-target_link_libraries(${SOREN_TARGET_DEMO}  
-    PUBLIC ibverbs pthread)
-
-#
-# Hartebeest subdir
-add_subdirectory(
-    ${CMAKE_SOURCE_DIR}/hartebeest
-    ${CMAKE_SOURCE_DIR}/hartebeest/build
-    )
+target_link_directories(${SOREN_TARGET_DEMO} PUBLIC "build/out")
+target_link_libraries(
+    ${SOREN_TARGET_DEMO}  
+    PUBLIC ibverbs pthread hartebeest)
