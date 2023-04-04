@@ -1,3 +1,4 @@
+# Template:
 # Prerequisites
 *.d
 
@@ -30,3 +31,9 @@
 *.exe
 *.out
 *.app
+
+# This repo-specific:
+build/*
+hartebeest/build/*
+
+# CMakes
