@@ -35,5 +35,6 @@
 # This repo-specific:
 build/*
 hartebeest/build/*
+*.log
 
 # CMakes
