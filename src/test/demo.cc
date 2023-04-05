@@ -6,13 +6,11 @@
 
 #include <string>
 
-#include "spdlog/spdlog.h"
 #include "rdma-conf.hpp"
+#include "../soren.hh"
 
-#include "../logger.hh"
-
-static soren::Logger soren_lgr("SOREN");
-static soren::Logger hb_lgr("HARTEBEEST");
+static soren::Logger soren_lgr("SOREN", "soren-demo.run.log");
+static soren::Logger hb_lgr("HARTEBEEST", "hartebeest.log");
 
 int main() {
     
@@ -21,8 +19,10 @@ int main() {
 
     SOREN_LOGGER_INFO(soren_lgr, "Soren demo run.");
 
-    if (exchr.doReadConfigFile("./config/network-config.json") == false)
+    if (exchr.doReadConfigFile("./config/network-config.json") == false) {
         SOREN_LOGGER_ERROR(hb_lgr, "Exchanger cannot open the file.");
+        goto clean_up;
+    }
 
     SOREN_LOGGER_INFO(hb_lgr, "Exchanger opened the file.");
     SOREN_LOGGER_INFO(hb_lgr, "RdmaConfigurator start.");
@@ -34,5 +34,7 @@ int main() {
 
     SOREN_LOGGER_INFO(soren_lgr, "Soren demo end.");
 
+
+clean_up:
     return 0;
 }

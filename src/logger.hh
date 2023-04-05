@@ -20,12 +20,12 @@ namespace soren {
         std::unique_ptr<spdlog::logger>                         ms_lgr;
 
     public:
-        Logger(std::string arg_lgr_name) {
+        Logger(std::string arg_lgr_name, std::string arg_filen = "soren.log") {
             const std::string formatted_log = "[%n:%^%l%$] %v";
             
             // Generate both file and console logger.
             console_lgr = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-            file_lgr    = std::make_shared<spdlog::sinks::basic_file_sink_mt>("soren.log", true);
+            file_lgr    = std::make_shared<spdlog::sinks::basic_file_sink_mt>(arg_filen, true);
             
             console_lgr->set_pattern(formatted_log);
             file_lgr->set_pattern(formatted_log);
@@ -42,5 +42,5 @@ namespace soren {
 
 }
 
-#define SOREN_LOGGER_INFO(INSTANCE, MSG)        do {(INSTANCE).getLogger()->info(MSG); } while(0)
-#define SOREN_LOGGER_ERROR(INSTANCE, MSG)       do {(INSTANCE).getLogger()->error(MSG); } while(0)
+#define SOREN_LOGGER_INFO(INSTANCE, ...)        do {(INSTANCE).getLogger()->info(__VA_ARGS__); } while(0)
+#define SOREN_LOGGER_ERROR(INSTANCE, ...)       do {(INSTANCE).getLogger()->error(__VA_ARGS__); } while(0)

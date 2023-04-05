@@ -6,15 +6,15 @@
 # Project SOREN
 # 
 
-
+PAR=$(cat /proc/cpuinfo | grep cores | wc -l)
 cmake -S . -B build
 # make -f build/Makefile libhartebeest
 
-cd ./build && make -j 32 hartebeest
+cd ./build && make -j 4 hartebeest
 
 if [ ! -d "out" ]; then
     mkdir -p out
 fi
 
 cp ../hartebeest/build/libhartebeest.so ./out
-make -j 32 all
+make -j 4 all
