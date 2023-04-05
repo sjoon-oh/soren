@@ -5,18 +5,53 @@
  * Project SOREN
  */
 
+#include <cstdint>
+
 namespace soren {
+
+    enum {
+        ROLE_REPLICATOR,
+        ROLE_REPLAYER
+    };
+
+    const char log_entry_prt = 0xf3;
+    struct log_entry {
+        char    prt;
+        char    log[63];
+    };
+
+    // Simple:
+    // Each role have one memory region, one queue pair. 
 
     class Player {
     private:
+        uint8_t*    workspace;
 
     public:
-        Player();
-        ~Player();
+        Player() : workspace(nullptr) { };
+        virtual ~Player();
 
-
-
+        virtual void doLaunchPlayer();
     };
 
+    class Replicator : public Player {
+    private:
 
+    public:
+        Replicator();
+        ~Replicator();
+
+        virtual void doLaunchPlayer();
+    };
+
+    //
+    //
+    class Replayer : public Player {
+    private:
+
+    public:
+
+        
+        virtual void doLaunchPlayer();
+    };
 }

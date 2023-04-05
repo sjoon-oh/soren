@@ -64,7 +64,8 @@ file(GLOB SOREN_TEST_HEARTBEAT_SRCFILES
     CONFIGURE_DEPENDS 
     ${CMAKE_SOURCE_DIR}/src/test/test-heartbeat.cc
     ${CMAKE_SOURCE_DIR}/src/*.cc 
-    ${CMAKE_SOURCE_DIR}/src/*.hh)
+    ${CMAKE_SOURCE_DIR}/src/*.hh
+)
 
 add_executable(
     ${SOREN_TEST_HEARTBEAT}  
@@ -77,4 +78,29 @@ set_target_properties(
 
 target_link_libraries(
     ${SOREN_TEST_HEARTBEAT}  
+    PUBLIC pthread)
+
+#
+# --------------------------------------
+# Target: SOREN_TEST_PARTITION
+set(SOREN_TEST_PARTITION
+    soren-partitioner.test)
+file(GLOB SOREN_TEST_PARTITION_SRCFILES 
+    CONFIGURE_DEPENDS 
+    ${CMAKE_SOURCE_DIR}/src/test/test-partitioner.cc
+    ${CMAKE_SOURCE_DIR}/src/*.cc 
+    ${CMAKE_SOURCE_DIR}/src/*.hh
+)
+
+add_executable(
+    ${SOREN_TEST_PARTITION}  
+    ${SOREN_TEST_PARTITION_SRCFILES}
+)
+set_target_properties(
+    ${SOREN_TEST_PARTITION} 
+    PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build
+)
+
+target_link_libraries(
+    ${SOREN_TEST_PARTITION}  
     PUBLIC pthread)

@@ -21,9 +21,9 @@ namespace soren {
         ~Heartbeat();
 
         // Interfaces
-        inline void doWriteBeat(uint64_t);
-        inline void doSelfPound();
-        inline void doReset();
+        void doWriteBeat(uint64_t);
+        void doSelfPound();
+        void doReset();
 
         uint64_t getHandleBeat() const;
         uint64_t getCoreBeat() const;
@@ -44,10 +44,10 @@ namespace soren {
         HeartbeatLocalRunner(uint8_t);
         ~HeartbeatLocalRunner();
 
-        inline void doLaunchRunner();
-        inline void doKillRunner();
+        void doLaunchRunner();
+        void doKillRunner();
 
-        inline uint64_t doPeek() const;
+        uint64_t doPeek() const;
     };
 
 

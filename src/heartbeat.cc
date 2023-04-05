@@ -17,15 +17,15 @@ namespace soren {
 soren::Heartbeat::Heartbeat() { doReset(); } // CTOR
 soren::Heartbeat::~Heartbeat() { } // DTOR
 
-inline void soren::Heartbeat::doWriteBeat(uint64_t arg_handle_beat) {
+void soren::Heartbeat::doWriteBeat(uint64_t arg_handle_beat) {
     handle_beat = arg_handle_beat;
 }
 
-inline void soren::Heartbeat::doSelfPound() { 
+void soren::Heartbeat::doSelfPound() { 
     handle_beat = core_beat.fetch_add(1);
 }
 
-inline void soren::Heartbeat::doReset() {
+void soren::Heartbeat::doReset() {
     handle_beat = 0;
     core_beat.store(0);
 }
@@ -43,7 +43,7 @@ bool soren::Heartbeat::isLive() const {
 soren::HeartbeatLocalRunner::HeartbeatLocalRunner(uint8_t arg_itvl) : interval(arg_itvl) { }
 soren::HeartbeatLocalRunner::~HeartbeatLocalRunner() { }
 
-inline void soren::HeartbeatLocalRunner::doLaunchRunner() {
+void soren::HeartbeatLocalRunner::doLaunchRunner() {
 
     std::thread local_runner(
         [](Heartbeat& arg_beater, uint8_t arg_itvl) {
@@ -63,13 +63,13 @@ inline void soren::HeartbeatLocalRunner::doLaunchRunner() {
     SOREN_LOGGER_INFO(HEARTBEAT_LOGGER, "HeartbeatLocalRunner launched: Handle {}", runner_handle);
 }
 
-inline void soren::HeartbeatLocalRunner::doKillRunner() {
+void soren::HeartbeatLocalRunner::doKillRunner() {
     
     pthread_cancel(static_cast<pthread_t>(runner_handle));
     SOREN_LOGGER_INFO(HEARTBEAT_LOGGER, "HeartbeatLocalRunner killed: Handle {}", runner_handle);
 }
 
-inline uint64_t soren::HeartbeatLocalRunner::doPeek() const {
+uint64_t soren::HeartbeatLocalRunner::doPeek() const {
     return beater.getCoreBeat();
 }
 

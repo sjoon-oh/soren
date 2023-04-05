@@ -4,6 +4,8 @@
  * Project SOREN
  */
 
+#include <unistd.h>
+
 #include <string>
 #include <thread>
 
@@ -18,8 +20,15 @@ int main() {
 
     SOREN_LOGGER_INFO(soren_lgr, "Soren heartbeat test run.");
     
+    hb_runner.doLaunchRunner();
 
+    for (int count = 0; count < 10; count++) {
 
+        SOREN_LOGGER_INFO(soren_lgr, "Heartbeat peek: {}", hb_runner.doPeek());
+        usleep(100000);
+    }
+
+    hb_runner.doKillRunner();
 
     SOREN_LOGGER_INFO(soren_lgr, "Soren heartbeat test end.");
 

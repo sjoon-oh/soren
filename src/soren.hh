@@ -9,3 +9,4 @@
 #include "logger.hh"    // Soren Logger
 
 #include "heartbeat.hh"
+#include "partition.hh"
