@@ -25,10 +25,12 @@ namespace soren {
 
     class Player {
     private:
+        uint32_t    node_id;
         uint8_t*    workspace;
 
     public:
         Player() : workspace(nullptr) { };
+        Player(uint32_t arg_node_id) : node_id(arg_node_id), workspace(nullptr) { };
         virtual ~Player();
 
         virtual void doLaunchPlayer();

@@ -31,7 +31,7 @@ namespace soren {
             file_lgr->set_pattern(formatted_log);
 
             console_lgr->set_level(spdlog::level::info);    // Make all visible.
-            file_lgr->set_level(spdlog::level::warn);       // Above warning.
+            file_lgr->set_level(spdlog::level::info);       // Above warning.
 
             // Use this.
             ms_lgr = std::unique_ptr<spdlog::logger>(new spdlog::logger(arg_lgr_name, {console_lgr, file_lgr}));

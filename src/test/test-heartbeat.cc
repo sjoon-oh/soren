@@ -24,7 +24,7 @@ int main() {
 
     for (int count = 0; count < 10; count++) {
 
-        SOREN_LOGGER_INFO(soren_lgr, "Heartbeat peek: {}", hb_runner.doPeek());
+        SOREN_LOGGER_INFO(soren_lgr, " > Heartbeat peek: {}", hb_runner.doPeek());
         usleep(100000);
     }
 

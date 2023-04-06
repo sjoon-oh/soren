@@ -19,7 +19,7 @@ namespace soren {
     private:
         uint16_t                players;
         uint32_t                ranger;    
-        std::vector<uint32_t>   mapping{}; 
+        std::vector<uint32_t>   mapping{};
 
     public:
         Partitioner(uint32_t, uint32_t);

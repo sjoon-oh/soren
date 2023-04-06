@@ -14,6 +14,6 @@ namespace soren {
         Connector();
         ~Connector();
 
-
+        
     };
 }

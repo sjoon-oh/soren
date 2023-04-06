@@ -28,79 +28,87 @@ include_directories(${CMAKE_SOURCE_DIR}/hartebeest/src)
 include_directories(${CMAKE_SOURCE_DIR}/extern)
 
 #
+# Main SOREN proj.
+set(LIBSOREN    soren)
+file(GLOB LIBSOREN_SRCFILES 
+    CONFIGURE_DEPENDS 
+    ${CMAKE_SOURCE_DIR}/src/*.cc 
+    ${CMAKE_SOURCE_DIR}/src/*.hh)
+
+add_library(${LIBSOREN} SHARED ${LIBSOREN_SRCFILES})
+set_target_properties(
+    ${LIBSOREN} 
+    PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/out
+)
+target_link_libraries(${LIBSOREN} PUBLIC ibverbs pthread hartebeest)
+
+#
+# Name prefix, suffix
+set(SOREN_PREFIX        soren)
+set(SOREN_SUFFIX_TEST   test)
+
+
+#
 # --------------------------------------
 # Target: SOREN_TARGET_DEMO
 # Demo Executable Settings
-set(SOREN_TARGET_DEMO
-    soren-demo.run)
+set(SOREN_TARGET_DEMO ${SOREN_PREFIX}-demo.run)
 file(GLOB SOREN_TARGET_DEMO_SRCFILES 
     CONFIGURE_DEPENDS 
     ${CMAKE_SOURCE_DIR}/src/test/demo.cc
-    ${CMAKE_SOURCE_DIR}/src/*.cc 
-    ${CMAKE_SOURCE_DIR}/src/*.hh)
+)
 
 add_executable(
     ${SOREN_TARGET_DEMO}
     ${SOREN_TARGET_DEMO_SRCFILES}
 )
-set_target_properties(
-    ${SOREN_TARGET_DEMO} 
-    PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build
-)
-
-# Library Link
-target_link_directories(${SOREN_TARGET_DEMO} PUBLIC "build/out")
-target_link_libraries(
-    ${SOREN_TARGET_DEMO}  
-    PUBLIC ibverbs pthread hartebeest)
-
+target_link_libraries(${SOREN_TARGET_DEMO} PUBLIC ${LIBSOREN})
 
 #
 # --------------------------------------
 # Target: SOREN_TEST_HEARTBEAT
-set(SOREN_TEST_HEARTBEAT
-    soren-heartbeat.test)
+set(SOREN_TEST_HEARTBEAT ${SOREN_PREFIX}-heartbeat.${SOREN_SUFFIX_TEST})
 file(GLOB SOREN_TEST_HEARTBEAT_SRCFILES 
     CONFIGURE_DEPENDS 
     ${CMAKE_SOURCE_DIR}/src/test/test-heartbeat.cc
-    ${CMAKE_SOURCE_DIR}/src/*.cc 
-    ${CMAKE_SOURCE_DIR}/src/*.hh
 )
 
 add_executable(
-    ${SOREN_TEST_HEARTBEAT}  
+    ${SOREN_TEST_HEARTBEAT}
     ${SOREN_TEST_HEARTBEAT_SRCFILES}
 )
-set_target_properties(
-    ${SOREN_TEST_HEARTBEAT} 
-    PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build
-)
-
-target_link_libraries(
-    ${SOREN_TEST_HEARTBEAT}  
-    PUBLIC pthread)
+target_link_libraries(${SOREN_TEST_HEARTBEAT} PUBLIC ${LIBSOREN})
 
 #
 # --------------------------------------
 # Target: SOREN_TEST_PARTITION
 set(SOREN_TEST_PARTITION
-    soren-partitioner.test)
-file(GLOB SOREN_TEST_PARTITION_SRCFILES 
+    ${SOREN_PREFIX}-partitioner.${SOREN_SUFFIX_TEST})
+    file(GLOB SOREN_TEST_PARTITION_SRCFILES 
     CONFIGURE_DEPENDS 
-    ${CMAKE_SOURCE_DIR}/src/test/test-partitioner.cc
-    ${CMAKE_SOURCE_DIR}/src/*.cc 
-    ${CMAKE_SOURCE_DIR}/src/*.hh
+    ${CMAKE_SOURCE_DIR}/src/test/test-heartbeat.cc
 )
 
 add_executable(
     ${SOREN_TEST_PARTITION}  
     ${SOREN_TEST_PARTITION_SRCFILES}
 )
-set_target_properties(
-    ${SOREN_TEST_PARTITION} 
-    PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build
+target_link_libraries(${SOREN_TEST_PARTITION} PUBLIC ${LIBSOREN})
+
+
+#
+# --------------------------------------
+# Target: SOREN_TEST_CONNECTOR
+set(SOREN_TEST_CONNECTOR
+    ${SOREN_PREFIX}-connector.${SOREN_SUFFIX_TEST})
+    file(GLOB SOREN_TEST_CONNECTOR_SRCFILES 
+    CONFIGURE_DEPENDS 
+    ${CMAKE_SOURCE_DIR}/src/test/test-connector.cc
 )
 
-target_link_libraries(
-    ${SOREN_TEST_PARTITION}  
-    PUBLIC pthread)
+add_executable(
+    ${SOREN_TEST_CONNECTOR}  
+    ${SOREN_TEST_CONNECTOR_SRCFILES}
+)
+target_link_libraries(${SOREN_TEST_CONNECTOR} PUBLIC ${LIBSOREN})
+

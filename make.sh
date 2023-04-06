@@ -18,3 +18,5 @@ fi
 
 cp ../hartebeest/build/libhartebeest.so ./out
 make -j 4 all
+
+rm *log
