@@ -47,23 +47,6 @@ target_link_libraries(${LIBSOREN} PUBLIC ibverbs pthread hartebeest)
 set(SOREN_PREFIX        soren)
 set(SOREN_SUFFIX_TEST   test)
 
-
-#
-# --------------------------------------
-# Target: SOREN_TARGET_DEMO
-# Demo Executable Settings
-set(SOREN_TARGET_DEMO ${SOREN_PREFIX}-demo.run)
-file(GLOB SOREN_TARGET_DEMO_SRCFILES 
-    CONFIGURE_DEPENDS 
-    ${CMAKE_SOURCE_DIR}/src/test/demo.cc
-)
-
-add_executable(
-    ${SOREN_TARGET_DEMO}
-    ${SOREN_TARGET_DEMO_SRCFILES}
-)
-target_link_libraries(${SOREN_TARGET_DEMO} PUBLIC ${LIBSOREN})
-
 #
 # --------------------------------------
 # Target: SOREN_TEST_HEARTBEAT
@@ -111,4 +94,21 @@ add_executable(
     ${SOREN_TEST_CONNECTOR_SRCFILES}
 )
 target_link_libraries(${SOREN_TEST_CONNECTOR} PUBLIC ${LIBSOREN})
+
+
+#
+# --------------------------------------
+# Target: SOREN_TEST_PLAYER
+set(SOREN_TEST_PLAYER
+    ${SOREN_PREFIX}-player.${SOREN_SUFFIX_TEST})
+    file(GLOB SOREN_TEST_PLAYER_SRCFILES 
+    CONFIGURE_DEPENDS 
+    ${CMAKE_SOURCE_DIR}/src/test/test-player.cc
+)
+
+add_executable(
+    ${SOREN_TEST_PLAYER}  
+    ${SOREN_TEST_PLAYER_SRCFILES}
+)
+target_link_libraries(${SOREN_TEST_PLAYER} PUBLIC ${LIBSOREN})
 

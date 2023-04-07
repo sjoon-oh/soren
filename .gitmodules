@@ -1,3 +1,4 @@
 [submodule "hartebeest"]
 	path = hartebeest
     url = https://github.com/sjoon-oh/hartebeest
+    ignore = dirty

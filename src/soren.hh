@@ -10,4 +10,5 @@
 
 #include "heartbeat.hh"
 #include "partition.hh"
+#include "player.hh"
 #include "connector.hh"

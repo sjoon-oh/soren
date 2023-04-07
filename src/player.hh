@@ -4,56 +4,115 @@
  * 
  * Project SOREN
  */
-
+#include <stddef.h>
 #include <cstdint>
+
+#include <mutex>
+#include <vector>
+#include <map>      
+
+#include <atomic>
+#include <thread>
+
+// Resource Representation
+#include "partition.hh"
+#include "hartebeest-wrapper.hh"
+
+// #include <infiniband/verbs.h> // OFED IB verbs
 
 namespace soren {
 
     enum {
-        ROLE_REPLICATOR,
-        ROLE_REPLAYER
+        WORKER_CONTINUE,
+        WORKER_PAUSE
     };
 
-    const char log_entry_prt = 0xf3;
     struct log_entry {
-        char    prt;
-        char    log[63];
+        char*       addr;
+        uint32_t    size;
+    };
+
+    struct WorkerThread {
+        std::thread                         wrkt;       // Thread obj
+        std::thread::native_handle_type     wrkt_nhdl;  // Native handle.
+
+        WorkerThread() : wrkt_nhdl(0) { }
+        WorkerThread(std::thread& arg_t, std::thread::native_handle_type arg_hdl) :
+            wrkt(std::move(arg_t)), wrkt_nhdl(arg_hdl) { }
     };
 
     // Simple:
     // Each role have one memory region, one queue pair. 
-
     class Player {
-    private:
-        uint32_t    node_id;
-        uint8_t*    workspace;
+    protected:
+        uint32_t        node_id;
+        
+        //
+        // These resources are just borrowed (copied) version. 
+        // Do not let any player to reallocate or release these resources.
+        // It is Hartebeest's responsibility to control the RDMA resources.
+        std::map<uint32_t, struct ibv_mr*>      mr_hdls{};
+        std::map<uint32_t, struct ibv_qp*>      qp_hdls{};
 
-    public:
-        Player() : workspace(nullptr) { };
-        Player(uint32_t arg_node_id) : node_id(arg_node_id), workspace(nullptr) { };
-        virtual ~Player();
+        // std::vector<MemoryRegion>   mr_hdls{};
+        // std::vector<QueuePair>      qp_hdls{};  // Queue Pair Handles.
 
-        virtual void doLaunchPlayer();
-    };
+        std::atomic<bool>           stop_and_go;
+        std::vector<WorkerThread>   workers;    // This worker vector is append only.
+                                                // Killed threads will have its handle set to 0.
 
-    class Replicator : public Player {
-    private:
 
-    public:
-        Replicator();
-        ~Replicator();
-
-        virtual void doLaunchPlayer();
-    };
-
-    //
-    //
-    class Replayer : public Player {
-    private:
-
-    public:
+        // Partition related:
+        Partitioner                 judge;
+        std::atomic<uint32_t>       sub_par;    // Local sub partitions
 
         
-        virtual void doLaunchPlayer();
+    public: 
+        Player(uint16_t, uint32_t, uint32_t);
+        virtual ~Player() = default;
+
+        // Comm interfaces.
+        virtual int doLaunchPlayer(uint32_t, uint32_t) = 0;
+        void doContinueAllWorkers();
+        void doPauseAllWorkers();
+        virtual int doUpdateConfig() = 0;
+
+        bool doAddMr(uint32_t, struct ibv_mr*);
+        bool doAddQp(uint32_t, struct ibv_qp*);
+
+        void doResetMrs();
+        void doResetQps();
+
+        void doKillWorker(uint32_t);
+
+        bool isWorkerAlive(uint32_t);
+    };
+    
+
+    /* Replicator class
+     */
+    class Replicator final : public Player {
+    private:
+
+    public:
+        Replicator(uint16_t, uint32_t, uint32_t);
+        virtual ~Replicator() = default;
+
+        virtual int doLaunchPlayer(uint32_t, uint32_t);
+        virtual int doUpdateConfig() { return 0; };;
+
+        int doPropose();
+    };
+
+
+    /* Replayer class
+     */
+    class Replayer final : public Player {
+    private:        
+
+    public:
+
+        virtual int doLaunchPlayer() { return 0; };
+        virtual int doUpdateConfig() { return 0; };
     };
 }

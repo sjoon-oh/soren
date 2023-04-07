@@ -10,13 +10,14 @@ PAR=$(cat /proc/cpuinfo | grep cores | wc -l)
 cmake -S . -B build
 # make -f build/Makefile libhartebeest
 
-cd ./build && make -j 4 hartebeest
+cd ./build && make -j 16 hartebeest
 
 if [ ! -d "out" ]; then
     mkdir -p out
 fi
 
 cp ../hartebeest/build/libhartebeest.so ./out
-make -j 4 all
+make -j 16 all
 
 rm *log
+rm *json

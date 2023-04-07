@@ -65,8 +65,8 @@ void soren::HeartbeatLocalRunner::doLaunchRunner() {
 
 void soren::HeartbeatLocalRunner::doKillRunner() {
     
+    SOREN_LOGGER_INFO(HEARTBEAT_LOGGER, "HeartbeatLocalRunner killing: Handle {}", runner_handle);
     pthread_cancel(static_cast<pthread_t>(runner_handle));
-    SOREN_LOGGER_INFO(HEARTBEAT_LOGGER, "HeartbeatLocalRunner killed: Handle {}", runner_handle);
 }
 
 uint64_t soren::HeartbeatLocalRunner::doPeek() const {
