@@ -14,6 +14,16 @@ namespace soren {
     static Logger HEARTBEAT_LOGGER("SOREN/HB", "soren_hb.log");
 }
 
+//
+// This class periodically increases the heartbeat. 
+// Heartbeat class has two variables: handle_beat and core_beat.
+// The former is open to the outside of the instance.
+// The latter is fixed, and declared as atomic variable for multi-threaded apps
+//  can access.
+// The Heartbeat defines its liveness by comparing the open area handle_beat and its
+//  inner area core_beat values.
+//
+
 soren::Heartbeat::Heartbeat() { doReset(); } // CTOR
 soren::Heartbeat::~Heartbeat() { } // DTOR
 
@@ -43,6 +53,12 @@ bool soren::Heartbeat::isLive() const {
 soren::HeartbeatLocalRunner::HeartbeatLocalRunner(uint8_t arg_itvl) : interval(arg_itvl) { }
 soren::HeartbeatLocalRunner::~HeartbeatLocalRunner() { }
 
+// HeartbeatLocalRunner launches a never-ending thread that gradually increases the value core_beat.
+//  Local runner increases the value, and overwirtes the open handle_beat. 
+// It does not matter whether the handle_beat gets corrupted by others,
+//  since the local runner always handles its own core_beat, which represents the real heartbeat.
+// The interval is set using the constructor, which is unchangable.
+
 void soren::HeartbeatLocalRunner::doLaunchRunner() {
 
     std::thread local_runner(
@@ -62,6 +78,10 @@ void soren::HeartbeatLocalRunner::doLaunchRunner() {
 
     SOREN_LOGGER_INFO(HEARTBEAT_LOGGER, "HeartbeatLocalRunner launched: Handle {}", runner_handle);
 }
+
+// This doKillRunner stops the heartbeat thread. 
+// Even after the kill, another new beating thread can be launched by 
+//  calling again the doLaunchRunner.
 
 void soren::HeartbeatLocalRunner::doKillRunner() {
     
