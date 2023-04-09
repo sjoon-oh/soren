@@ -94,21 +94,3 @@ add_executable(
     ${SOREN_TEST_CONNECTOR_SRCFILES}
 )
 target_link_libraries(${SOREN_TEST_CONNECTOR} PUBLIC ${LIBSOREN})
-
-
-#
-# --------------------------------------
-# Target: SOREN_TEST_PLAYER
-set(SOREN_TEST_PLAYER
-    ${SOREN_PREFIX}-player.${SOREN_SUFFIX_TEST})
-    file(GLOB SOREN_TEST_PLAYER_SRCFILES 
-    CONFIGURE_DEPENDS 
-    ${CMAKE_SOURCE_DIR}/src/test/test-player.cc
-)
-
-add_executable(
-    ${SOREN_TEST_PLAYER}  
-    ${SOREN_TEST_PLAYER_SRCFILES}
-)
-target_link_libraries(${SOREN_TEST_PLAYER} PUBLIC ${LIBSOREN})
-

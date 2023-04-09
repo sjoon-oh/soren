@@ -28,6 +28,8 @@ namespace soren {
         int registerRcQp(uint32_t, uint32_t, uint32_t, uint32_t);
 
         int exchangeRdmaConfigs();
+
+        int connectRcQps(uint32_t, uint32_t, uint32_t, uint32_t);
         
         int getThisNodeId();
         int getNumPlayers();
@@ -35,5 +37,9 @@ namespace soren {
         // Get infos/
         struct ::ibv_mr* getMr(uint32_t);
         struct ::ibv_qp* getQp(uint32_t);
+        
     }
+
+    int rdmaWrite(struct ::ibv_qp*, uintptr_t, uint32_t, uint32_t, uintptr_t, uint32_t);
+    int rdmaRead();
 }

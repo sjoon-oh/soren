@@ -16,7 +16,7 @@ static soren::Logger hb_lgr("HARTEBEEST", "hartebeest.log");
 
 int main() {
     
-    soren::HeartbeatLocalRunner hb_runner(10000);
+    soren::HeartbeatLocalRunner hb_runner(200);
 
     SOREN_LOGGER_INFO(soren_lgr, "Soren heartbeat test run.");
     
