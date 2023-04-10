@@ -29,6 +29,7 @@ namespace soren {
         struct hartebeest::RdmaNetworkContext           NETWORK_RDMA_CONTEXT = {0, nullptr};
 
         struct hartebeest::Qp* searchQp(uint32_t, uint32_t, uint32_t);
+        struct hartebeest::Mr* searchMr(uint32_t, uint32_t, uint32_t);
     }
 }
 
@@ -88,8 +89,7 @@ bool soren::hbwrapper::initConfigFileExchanger() {
 }
 
 int soren::hbwrapper::registerPd(uint32_t arg_pd_id) {
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "PD registration...");
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > PD({}) registered.", arg_pd_id);
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "PD({}) created.", arg_pd_id);
     return HB_CONFIGURATOR->doRegisterPd2(arg_pd_id);
 }
 
@@ -98,8 +98,7 @@ uint8_t* soren::hbwrapper::allocateBuffer(size_t arg_len, int arg_align) {
 }
 
 int soren::hbwrapper::registerMr(uint32_t arg_pd_id, uint32_t arg_mr_id, uint8_t* buf, size_t arg_len) {
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "MR registration...");
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > MR({}) registered to PD({}).", arg_mr_id, arg_pd_id);
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "MR({}) linked to PD({}).", arg_mr_id, arg_pd_id);
     return HB_CONFIGURATOR->doCreateAndRegisterMr2(arg_pd_id, arg_mr_id, buf, arg_len);
 }
 
@@ -109,20 +108,16 @@ int soren::hbwrapper::registerRcQp(
         uint32_t    arg_send_cq_id,
         uint32_t    arg_recv_cq_id
     ) {
-        SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "rcQP registration...");
 
         int ret = HB_CONFIGURATOR->doCreateAndRegisterCq2(arg_send_cq_id);
         ret = HB_CONFIGURATOR->doCreateAndRegisterCq2(arg_recv_cq_id);
 
         ret = HB_CONFIGURATOR->doCreateAndRegisterRcQp2(arg_pd_id, arg_qp_id, arg_send_cq_id, arg_recv_cq_id);
 
-        SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > QP({}) with send/recv CQs({}/{}) registered to PD({})",
+        SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "QP({}), CQs({}/{}) linked to PD({})",
             arg_qp_id, arg_send_cq_id, arg_recv_cq_id, arg_pd_id);
 
-        ret = HB_CONFIGURATOR->doInitQp2(arg_qp_id);
-        SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > QP({}) transit to INIT.",
-            arg_qp_id, arg_send_cq_id, arg_recv_cq_id, arg_pd_id);
-        
+        ret = HB_CONFIGURATOR->doInitQp2(arg_qp_id);        
         return ret;
 };
 
@@ -130,7 +125,16 @@ int soren::hbwrapper::exchangeRdmaConfigs() {
     
     HB_CONFIGURATOR->doExportAll2(HB_EXCHANGER->getThisNodeId(), "./config/local-config.json");
     int ret = HB_EXCHANGER->setThisNodeConf("./config/local-config.json");
+
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "Exchanging RDMA configurations (via TCP)...");
     ret = HB_EXCHANGER->doExchange();
+
+    if (ret == true)
+        SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > OK.");
+    else {
+        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, " > Fail.");
+        abort();
+    }
 
     sleep(HB_DELAY);
 
@@ -145,6 +149,11 @@ int soren::hbwrapper::exchangeRdmaConfigs() {
         }, std::ref(hb_hbwrapper_lgr), std::ref(NETWORK_RDMA_CONTEXT)
     );
 
+    if (NETWORK_RDMA_CONTEXT.num_nodes != HB_EXCHANGER->getNumOfPlayers()) {
+        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, " > Exported context mismatch.");
+        return -1;
+    }
+
     SOREN_LOGGER_INFO(
         hb_hbwrapper_lgr, " > OK. Exported context: {} nodes in total found.", 
         NETWORK_RDMA_CONTEXT.num_nodes
@@ -158,8 +167,6 @@ hartebeest::Qp* soren::hbwrapper::searchQp(uint32_t arg_nid, uint32_t arg_pd_id,
     struct hartebeest::Pd*          pd;
     struct hartebeest::Qp*          qp;
     struct hartebeest::NodeContext* nctx;
-    
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "Search:");
 
     // Search remote node.
     for (int node_idx = 0; node_idx < NETWORK_RDMA_CONTEXT.num_nodes; node_idx++) {
@@ -169,8 +176,6 @@ hartebeest::Qp* soren::hbwrapper::searchQp(uint32_t arg_nid, uint32_t arg_pd_id,
             break;
     }
 
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > Node {} context: {} PDs", nctx->nid, nctx->num_pds);
-
     // Search Protection Domain
     for (int pd_idx = 0; pd_idx < nctx->num_pds; pd_idx++) {
 
@@ -178,8 +183,6 @@ hartebeest::Qp* soren::hbwrapper::searchQp(uint32_t arg_nid, uint32_t arg_pd_id,
         if (pd->pd_id == arg_pd_id)
             break; 
     }
-
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > Node {} PD({}) context: {} MRs, {} QPs", nctx->nid, pd->pd_id, pd->num_mrs, pd->num_qps);
 
     // Search Queue Pair
     for (int qp_idx = 0; qp_idx < pd->num_qps; qp_idx++) {
@@ -189,9 +192,42 @@ hartebeest::Qp* soren::hbwrapper::searchQp(uint32_t arg_nid, uint32_t arg_pd_id,
             break; 
     }
 
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > Node {} QP({}) context: QPN({}), PID({}), PLID({})", nctx->nid, qp->qp_id, qp->qpn, qp->pid, qp->plid);
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > Node {} QP({}): QPN({}), PID({}), PLID({})", nctx->nid, qp->qp_id, qp->qpn, qp->pid, qp->plid);
 
     return qp;
+}
+
+hartebeest::Mr* soren::hbwrapper::searchMr(uint32_t arg_nid, uint32_t arg_pd_id, uint32_t arg_mr_id) {
+
+    struct hartebeest::Pd*          pd;
+    struct hartebeest::Mr*          mr;
+    struct hartebeest::NodeContext* nctx;
+
+    // Search remote node.
+    for (int node_idx = 0; node_idx < NETWORK_RDMA_CONTEXT.num_nodes; node_idx++) {
+        
+        nctx = &(NETWORK_RDMA_CONTEXT.nodes[node_idx]);
+        if (nctx->nid == arg_nid)
+            break;
+    }
+
+    // Search Protection Domain
+    for (int pd_idx = 0; pd_idx < nctx->num_pds; pd_idx++) {
+
+        pd = &(nctx->pds[pd_idx]);
+        if (pd->pd_id == arg_pd_id)
+            break; 
+    }
+
+    // Search Queue Pair
+    for (int mr_idx = 0; mr_idx < pd->num_mrs; mr_idx++) {
+
+        mr = &(pd->mrs[mr_idx]);
+        if (mr->mr_id == arg_mr_id)
+            break; 
+    }
+
+    return mr;
 }
 
 int soren::hbwrapper::connectRcQps(
@@ -200,7 +236,7 @@ int soren::hbwrapper::connectRcQps(
         uint32_t arg_remote_pd_id,  // Remote Protection Domain ID
         uint32_t arg_remote_qp_id   // Remote Queue Pair ID
         ) {
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "Connecting QP of Node {}, searching...", arg_remote_nid);
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "Connecting QP({}) to QP({})", arg_qp_id, arg_remote_qp_id);
     
     hartebeest::Qp* qp = searchQp(arg_remote_nid, arg_remote_pd_id, arg_remote_qp_id);
     return HB_CONFIGURATOR->doConnectRcQp2(arg_qp_id, qp->pid, qp->qpn, qp->plid);
@@ -214,27 +250,57 @@ int soren::hbwrapper::getNumPlayers() {
     return HB_EXCHANGER->getNumOfPlayers();
 }
 
-struct ::ibv_mr* soren::hbwrapper::getMr(uint32_t arg_id) {
-    return HB_CONFIGURATOR->getMr(arg_id);
+struct ibv_mr* soren::hbwrapper::getLocalMr(uint32_t arg_id) {
+    struct ibv_mr* local_mr = HB_CONFIGURATOR->getMr(arg_id);
+
+    if (local_mr == nullptr)
+        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, "Local MR({}) not registered?", arg_id);
+    
+    return local_mr;
 }
 
-struct ::ibv_qp* soren::hbwrapper::getQp(uint32_t arg_id) {
-    HB_CONFIGURATOR->getQp(arg_id);
+struct ibv_qp* soren::hbwrapper::getLocalQp(uint32_t arg_id) {
+
+    struct ibv_qp* local_qp = HB_CONFIGURATOR->getQp(arg_id);
+
+    if (local_qp == nullptr)
+        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, "Local QP({}) not registered?", arg_id);
+    
+    return local_qp;
 }
+
+struct ibv_mr* soren::hbwrapper::getRemoteMinimalMr(uint32_t arg_nid, uint32_t arg_pd_id, uint32_t arg_id) {
+     
+    auto remote_mr = searchMr(arg_nid, arg_pd_id, arg_id);
+
+    // Make new.
+    struct ibv_mr* mr = new (struct ibv_mr);
+    std::memset(mr, 0, sizeof(struct ibv_mr));
+
+    // Fill minimals.
+    mr->addr = reinterpret_cast<void*>(remote_mr->addr);
+    mr->length = remote_mr->length;
+    mr->rkey = remote_mr->rkey;
+
+    return mr;
+}
+
+
 
 // Not wrapped, but pure.
-int soren::rdmaWrite(
-        struct ::ibv_qp*    arg_qp,
-        uintptr_t           arg_addr,
-        uint32_t            arg_size, 
-        uint32_t            arg_lk,
-        uintptr_t           arg_remote_addr,
-        uint32_t            arg_remote_rk
+int soren::rdmaPost(
+        int                     arg_opc,
+        struct ibv_qp*        arg_qp,
+        uintptr_t               arg_addr,
+        uint32_t                arg_size, 
+        uint32_t                arg_lk,
+        uintptr_t               arg_remote_addr,
+        uint32_t                arg_remote_rk
     ) {
 
-    struct ::ibv_send_wr    work_req;
-    struct ::ibv_sge        sg_elem;
-    struct ::ibv_send_wr*   bad_work_req = nullptr;
+    struct ibv_send_wr    work_req;
+    struct ibv_sge        sg_elem;
+    struct ibv_send_wr*   bad_work_req = nullptr;
 
     std::memset(&sg_elem, 0, sizeof(sg_elem));
     std::memset(&work_req, 0, sizeof(work_req));
@@ -261,9 +327,3 @@ int soren::rdmaWrite(
 
     return 0;
 }
-
-int soren::rdmaRead() {
-
-    return 0;
-}
-

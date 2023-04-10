@@ -9,6 +9,7 @@
 #include "connector.hh"
 
 namespace soren {
+
     static Logger CONNECTOR_LOGGER("SOREN/CONNECTOR", "soren_connector.log");
 }
 
@@ -17,25 +18,27 @@ soren::Connector::Connector(uint32_t arg_subpar) {
     hbwrapper::initRdmaConfigurator();
     hbwrapper::initConfigFileExchanger();
 
-    int num_players = hbwrapper::getNumPlayers();
+    nplayers = hbwrapper::getNumPlayers();
     node_id = hbwrapper::getThisNodeId();
 
     soren::hbwrapper::registerPd(COMMON_PD);
     
     //
     // Create Mr Qps for Receiver: Replayer.
-    const size_t buf_size = 2 * 1024 * 1024;
     uint8_t* buf_addr = nullptr;
 
-    for (int pl_id = 0; pl_id < num_players; pl_id++) {
+    for (int pl_id = 0; pl_id < nplayers; pl_id++) {
         for (int sp = 0; sp < arg_subpar; sp++) {
 
-            buf_addr = hbwrapper::allocateBuffer(buf_size, 64);
-            hbwrapper::registerMr(COMMON_PD, MRID(pl_id, sp), buf_addr, buf_size);
+            buf_addr = hbwrapper::allocateBuffer(BUF_SIZE, 64);
+            if (hbwrapper::registerMr(COMMON_PD, MRID(pl_id, sp), buf_addr, BUF_SIZE) != 0) {
+                SOREN_LOGGER_ERROR(CONNECTOR_LOGGER, "MR creation error.");
+                abort();
+            }
         }
     }
 
-    for (int pl_id = 0; pl_id < num_players; pl_id++) {
+    for (int pl_id = 0; pl_id < nplayers; pl_id++) {
 
         for (int sp = 0; sp < arg_subpar; sp++) {
             if (pl_id != node_id) {
@@ -56,9 +59,9 @@ soren::Connector::Connector(uint32_t arg_subpar) {
         }
     }
 
-    hbwrapper::exchangeRdmaConfigs();
+    if (hbwrapper::exchangeRdmaConfigs() != 1) abort();
 
-    for (int pl_id = 0; pl_id < num_players; pl_id++) {
+    for (int pl_id = 0; pl_id < nplayers; pl_id++) {
         for (int sp = 0; sp < arg_subpar; sp++) {
             
             if (pl_id != node_id) {
@@ -80,4 +83,21 @@ soren::Connector::~Connector() {
 
 int soren::Connector::getNodeId() {
     return node_id;
+}
+
+int soren::Connector::getNumPlayers() { return nplayers; }
+
+void soren::prepareNextAlignedOffset(int& arg_offs, int& arg_free, int arg_tarsize) {
+                            
+    // 1. Align, by 64.
+    if ((arg_offs % ALIGNMENT) != 0) {
+        arg_offs += (ALIGNMENT - (arg_offs % ALIGNMENT));
+        arg_free -= arg_offs; 
+    }
+    
+    // 2. Size remaining lack?
+    if (arg_tarsize > (arg_free)) {
+        arg_offs = 0;
+        arg_free = BUF_SIZE;
+    }
 }

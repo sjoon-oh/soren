@@ -35,11 +35,14 @@ namespace soren {
         int getNumPlayers();
 
         // Get infos/
-        struct ::ibv_mr* getMr(uint32_t);
-        struct ::ibv_qp* getQp(uint32_t);
+        struct ibv_mr* getLocalMr(uint32_t);
+        struct ibv_qp* getLocalQp(uint32_t);
+
+        struct ibv_mr* getRemoteMinimalMr(uint32_t, uint32_t, uint32_t);
         
     }
 
-    int rdmaWrite(struct ::ibv_qp*, uintptr_t, uint32_t, uint32_t, uintptr_t, uint32_t);
-    int rdmaRead();
+    int rdmaPost(
+        int, struct ibv_qp*, 
+        uintptr_t, uint32_t, uint32_t, uintptr_t, uint32_t);
 }

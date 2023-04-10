@@ -9,11 +9,13 @@
 
 namespace soren {
 
-    const uint8_t   SLOT_CANARY = 0xdeadceed;
-
     struct __attribute__((packed)) Slot {
+        uintptr_t   addr;
         uint32_t    size;
-        uint8_t*    addr;
+        uint32_t    canary;
+    };
+
+    struct __attribute__((packed)) SlotCanary {
         uint32_t    canary;
     };
 
@@ -23,6 +25,6 @@ namespace soren {
         char        msg[32];
     };
 
-    const bool isSlotValid(Slot& arg_tar) { return arg_tar.canary == SLOT_CANARY; }
+    const bool isSlotValid(Slot&, uint32_t);
 
 }

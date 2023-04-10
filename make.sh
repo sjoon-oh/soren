@@ -19,5 +19,5 @@ fi
 cp ../hartebeest/build/libhartebeest.so ./out
 make -j 16 all
 
-rm *log
-rm *json
+rm ../*log
+rm ../*json

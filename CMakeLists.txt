@@ -32,6 +32,7 @@ include_directories(${CMAKE_SOURCE_DIR}/extern)
 set(LIBSOREN    soren)
 file(GLOB LIBSOREN_SRCFILES 
     CONFIGURE_DEPENDS 
+    ${CMAKE_SOURCE_DIR}/src/*.c
     ${CMAKE_SOURCE_DIR}/src/*.cc 
     ${CMAKE_SOURCE_DIR}/src/*.hh)
 

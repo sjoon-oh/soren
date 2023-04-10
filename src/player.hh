@@ -6,9 +6,11 @@
  */
 #include <stddef.h>
 #include <cstdint>
+#include <cstdlib>
 
 #include <mutex>
 #include <array>
+#include <vector>
 #include <map>      
 
 #include <atomic>
@@ -17,6 +19,9 @@
 // Resource Representation
 #include "partition.hh"
 #include "connector.hh"
+
+#include "commons.hh"
+
 
 #include <infiniband/verbs.h>
 
@@ -29,6 +34,8 @@ namespace soren {
 
     const int MAX_REPLICATOR_WORKER = MAX_NWORKER / 2;
     const int MAX_REPLAYER_WORKER = MAX_NWORKER;
+
+    const int MAX_NSLOTS    = 128;
 
     enum {
         SIG_PAUSE       = 0x00,
@@ -44,13 +51,19 @@ namespace soren {
     };
 
     struct WorkerThread {
-        std::thread                         wrkt;       // Thread obj
-        std::thread::native_handle_type     wrkt_nhdl;  // Native handle.
-        std::atomic<int32_t>                wrk_sig;    // Signal Var.
+        std::thread                         wrkt;           // Thread obj
+        std::thread::native_handle_type     wrkt_nhdl;      // Native handle.
+        std::atomic<int32_t>                wrk_sig;        // Signal Var.
 
-        WorkerThread() : wrkt_nhdl(0), wrk_sig(0) { }
+        Slot*                               wrkspace;       // Per-thread workspace.
+        std::atomic<int32_t>                ws_free_idx;    // Signal Var.
+
+        WorkerThread() : wrkt_nhdl(0), wrk_sig(0), wrkspace(new Slot[MAX_NSLOTS]), ws_free_idx(0) { }
         WorkerThread(std::thread& arg_t, std::thread::native_handle_type arg_hdl) :
-            wrkt(std::move(arg_t)), wrkt_nhdl(arg_hdl), wrk_sig(0) { }
+            wrkt(std::move(arg_t)), wrkt_nhdl(arg_hdl), 
+            wrk_sig(0), wrkspace(new Slot[MAX_NSLOTS]), ws_free_idx(0) { }
+
+        ~WorkerThread() { delete[] wrkspace; }
     };
 
     // Simple:
@@ -63,13 +76,13 @@ namespace soren {
         // These resources are just borrowed (copied) version. 
         // Do not let any player to reallocate or release these resources.
         // It is Hartebeest's responsibility to control the RDMA resources.
-        std::map<uint32_t, struct ::ibv_mr*>      mr_hdls{};
-        std::map<uint32_t, struct ::ibv_qp*>      qp_hdls{};
+        std::map<uint32_t, struct ibv_mr*>    mr_hdls{};
+        std::map<uint32_t, struct ibv_qp*>    qp_hdls{};
 
-        std::array<WorkerThread, MAX_NWORKER> workers;
+        std::vector<struct ibv_mr*>           mr_remote_hdls{};
+        // This holds minimal infos. The resources are freed at dtor.
 
-        virtual int __findEmptyWorkerHandle() = 0;
-        virtual int __findNeighborAliveWorkerHandle(uint32_t) = 0;
+        std::array<WorkerThread, MAX_NWORKER>   workers;
 
         void __sendWorkerSignal(uint32_t, int32_t);
         void __waitWorkerSignal(uint32_t, int32_t);
@@ -78,21 +91,19 @@ namespace soren {
         // Think of it as its thread capacity.
 
         // Partition related:
-        Partitioner                 judge;
+        // Partitioner                 judge;
         std::atomic<uint32_t>       sub_par;    // Local sub partitions
 
         
     public: 
-        Player(uint16_t, uint32_t, uint32_t);
-        virtual ~Player() = default;
+        Player(uint32_t, uint16_t, uint32_t, uint32_t);
+        ~Player() = default;
 
-        // Comm interfaces.
-        virtual int doLaunchPlayer() = 0;
-        virtual int doUpdateConfig() = 0;
-
-        bool doAddMr(uint32_t, struct ibv_mr*);
-        bool doAddQp(uint32_t, struct ibv_qp*);
+        bool doAddLocalMr(uint32_t, struct ibv_mr*);
+        bool doAddLocalQp(uint32_t, struct ibv_qp*);
         // Make sure to connect QPs outside of the players.
+
+        bool doAddRemoteMr(uint32_t, struct ibv_mr*);   // This is minimal.
 
         void doResetMrs();
         void doResetQps();
@@ -108,16 +119,15 @@ namespace soren {
      */
     class Replicator final : public Player {
     protected:
-        virtual int __findEmptyWorkerHandle();
-        virtual int __findNeighborAliveWorkerHandle(uint32_t);
+        int __findEmptyWorkerHandle();
+        int __findNeighborAliveWorkerHandle(uint32_t);
 
     public:
-        Replicator(uint16_t, uint32_t, uint32_t);
-        virtual ~Replicator() = default;
+        Replicator(uint32_t, uint16_t, uint32_t, uint32_t);
+        ~Replicator() = default;
 
-        virtual int doLaunchPlayer();
+        int doLaunchPlayer(uint32_t);
         void doPropose(uint8_t*, size_t, uint16_t = 0);
-        virtual int doUpdateConfig() { return 0; };;
     };
 
 
@@ -128,7 +138,7 @@ namespace soren {
 
     public:
 
-        virtual int doLaunchPlayer() { return 0; };
-        virtual int doUpdateConfig() { return 0; };
+        int doLaunchPlayer() { return 0; };
+        int doUpdateConfig() { return 0; };
     };
 }

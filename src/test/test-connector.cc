@@ -26,25 +26,42 @@ int main() {
     const int RANGER = 10;
     const int SUB_PARTITON = 1;
 
-    soren::Replicator replicator(node_id, RANGER, SUB_PARTITON);
+    soren::Replicator replicator(node_id, num_players, RANGER, SUB_PARTITON);
 
     for (int i = 0; i < num_players; i++) {
+        for (int sp = 0; sp < SUB_PARTITON; sp++) {
+            if (i == node_id) {
+                replicator.doAddLocalMr(
+                    MRID(node_id, sp),
+                    soren::hbwrapper::getLocalMr(MRID(node_id, sp))); // Replicator's MR
+            } else {
+                replicator.doAddRemoteMr(
+                    MRID(i, sp), soren::hbwrapper::getRemoteMinimalMr(
+                        i, soren::COMMON_PD, MRID(i, sp)
+                    )
+                );
+            }
 
-        if (i != node_id) {
-            replicator.doAddMr(
-                MRID(node_id, SUB_PARTITON),
-                soren::hbwrapper::getMr(MRID(node_id, SUB_PARTITON))); // Test
-            replicator.doAddQp(
-                QPID_REPLICATOR(node_id, i, SUB_PARTITON)
-                , soren::hbwrapper::getQp(QPID_REPLICATOR(node_id, i, SUB_PARTITON)));
+            if (i != node_id) { // Queue Pair for others to send.
+                replicator.doAddLocalQp(
+                    QPID_REPLICATOR(node_id, i, sp), 
+                    soren::hbwrapper::getLocalQp(QPID_REPLICATOR(node_id, i, sp)));
+            }
         }
     }
 
-    int worker_handle = replicator.doLaunchPlayer();
+    int worker_handle = replicator.doLaunchPlayer(num_players);
 
     SOREN_LOGGER_INFO(soren_lgr, "Replicator worker handle: {}", worker_handle);
 
-    replicator.doPropose(nullptr, 0);
+    // Sample buffer
+    char* buf = "The past can hurt. But from the way I see it, you can either run from it, or learn from it.";
+
+    for (int i = 0; i < 10; i++) {
+        replicator.doPropose(reinterpret_cast<uint8_t*>(buf + (i * 6)), 6);
+        sleep(0.3);
+    }
+
     replicator.doTerminateWorker(worker_handle);
 
     SOREN_LOGGER_INFO(soren_lgr, "Soren player test run end.");
