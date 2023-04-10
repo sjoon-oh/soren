@@ -37,5 +37,9 @@ build/*
 hartebeest/build/*
 *.log
 .vscode
+config/eth-config.json
+config/local-config.json
+post-all-conf.json
+
 
 # CMakes
