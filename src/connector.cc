@@ -91,7 +91,7 @@ int soren::Connector::getNumPlayers() { return nplayers; }
 
 void soren::prepareNextAlignedOffset(int& arg_offs, int& arg_free, int arg_tarsize) {
                             
-    arg_tarsize += sizeof(struct Slot) + sizeof(struct SlotCanary);
+    arg_tarsize += (sizeof(struct Slot) + sizeof(struct SlotCanary));
 
     // 1. Align, by 64.
     if ((arg_offs % ALIGNMENT) != 0) {

@@ -138,8 +138,8 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers) {
     std::thread player_thread(
         [](
             std::atomic<int32_t>& arg_sig,                      // Signal
-            std::atomic<int32_t>& arg_ws_free_idx,
-            Slot* arg_ws,
+            std::atomic<int32_t>& arg_slots_free_idx,
+            Slot* arg_slots,
             const int arg_hdl,                                  // Worker Handle
             
             // Local handles.
@@ -158,7 +158,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers) {
 
             //
             // Local Memory Region (Buffer) tracker.
-            uint64_t    n_prop = 0;
+            uint32_t    n_prop = 0;
 
             int32_t     mr_offset = 128;
             int32_t     mr_linfree = BUF_SIZE - 128;
@@ -221,18 +221,19 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers) {
                         SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Read for LogStat failed.", arg_hdl);
                     }
                     else {
-                        waitRdmaRead(qps[nid]);
-
-                        SOREN_LOGGER_INFO(worker_logger, "Reading from ({}):\n- at remote [{}]\n- offset: {}, prop: {}\n- msg: {}", 
-                            nid, mrs[nid]->addr, (uint32_t)log_stat->offset, (uint32_t)log_stat->n_prop, (uint32_t)log_stat->dummy1);
+                        waitRdmaSend(qps[nid]);
 
                         if (n_prop < log_stat->n_prop) {
                             n_prop = log_stat->n_prop;
                             mr_offset = log_stat->offset;
                         }
 
-                        if (log_stat->dummy1 == REPLAYER_READY) 
+                        if (log_stat->dummy1 == REPLAYER_READY) {
+                            SOREN_LOGGER_INFO(worker_logger, "Reading from ({}):\n- at remote [{}]\n- offset: {}, prop: {}\n- msg: {}", 
+                                nid, mrs[nid]->addr, (uint32_t)log_stat->offset, (uint32_t)log_stat->n_prop, (uint32_t)log_stat->dummy1);
+
                             break;
+                        }
                     }
                 }
 
@@ -248,12 +249,12 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers) {
             // Thus, be sure not to kill any workers arbirarily.
             bool disp_msg = false;
             int32_t signal = 0, rnd_canary = 0;
+            
+            std::srand(std::time(nullptr));
 
             while (1) {
 
                 signal = arg_sig.load();
-
-                std::srand(std::time(nullptr));
                 rnd_canary = std::rand();
 
                 switch (signal) {
@@ -274,54 +275,59 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers) {
 
                     case SIG_PROPOSE:
                         disp_msg = false;
-                        SOREN_LOGGER_INFO(worker_logger, "Replicator({}) PROPOSING...", arg_hdl);
+
+                        n_prop += 1;
                         
                         {   
-                            int target_idx = arg_ws_free_idx.fetch_add(1);
+                            int idx = arg_slots_free_idx.fetch_add(1);
 
                             uintptr_t local_mr_addr = reinterpret_cast<uintptr_t>(wrkr_mr->addr);
                             uintptr_t msg_base = local_mr_addr + mr_offset;
                             uintptr_t remote_mr_addr;
 
-                            Slot slot = arg_ws[target_idx];
-                            slot.n_prop = ++n_prop;
+                            // Slot header = arg_slots[idx];
+                            Slot* header = &(arg_slots[idx]);
+                            header->n_prop = n_prop;
+                            header->canary = rnd_canary;
 
                             SlotCanary slot_canary = { .canary = rnd_canary };
-                            slot.canary = rnd_canary;
 
                             //
                             // Make payload!
                             // 1. Alignment
-                            prepareNextAlignedOffset(mr_offset, mr_linfree, slot.size);
-                            SOREN_LOGGER_INFO(worker_logger, "- offset: {}", mr_offset);
+                            prepareNextAlignedOffset(mr_offset, mr_linfree, header->size);
+
+                            SOREN_LOGGER_INFO(worker_logger, 
+                                "Replicator({}) PROPOSING...\n- slot idx: {}, prop: {}\n- offset: {}, canary: {}", 
+                                    arg_hdl, idx, (uint32_t)header->n_prop, mr_offset, (uint32_t)header->canary);
 
                             // 2. Prepare header
                             std::memcpy(
                                 reinterpret_cast<void*>(msg_base),
-                                &arg_ws[target_idx],
+                                reinterpret_cast<void*>(header),
                                 sizeof(struct Slot)
                             );
 
-                            mr_offset += sizeof(struct Slot);
+                            // SOREN_LOGGER_INFO(worker_logger, 
+                            //     "MEMCPY CHECK:\n- prop: {}, size: {}, canary: {}",
+                            //     (uint32_t)reinterpret_cast<Slot*>(msg_base)->n_prop,
+                            //     (uint32_t)reinterpret_cast<Slot*>(msg_base)->size,
+                            //     (uint32_t)reinterpret_cast<Slot*>(msg_base)->canary
+                            //     );
 
                             // 3. Fetch to the local memory region.
                             std::memcpy(
-                                reinterpret_cast<void*>(local_mr_addr + mr_offset),        
-                                                                    // Destination
-                                reinterpret_cast<void*>(slot.addr), // Source
-                                slot.size                           // Size, dah.
+                                reinterpret_cast<void*>(msg_base + sizeof(struct Slot)), // Destination   
+                                reinterpret_cast<void*>(header->addr),   // Source
+                                header->size      // Size, dah.
                             );
-
-                            mr_offset += slot.size;
 
                             // 4. Prepare slot canary.
                             std::memcpy(
-                                reinterpret_cast<void*>(local_mr_addr + mr_offset),
+                                reinterpret_cast<void*>(msg_base + sizeof(struct Slot) + header->size),
                                 &slot_canary,
                                 sizeof(struct SlotCanary)
                             );
-
-                            mr_offset += sizeof(struct SlotCanary);
 
                             // 
                             // Send POST
@@ -329,24 +335,30 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers) {
                                 if (nid == arg_nid) continue;
                                 
                                 // Update to per-remote contents.
+                                remote_mr_addr = reinterpret_cast<uintptr_t>(mrs[nid]->addr);
+
                                 reinterpret_cast<struct Slot*>(msg_base)->addr
-                                    = sizeof(struct Slot) + reinterpret_cast<uintptr_t>(mrs[nid]->addr);
+                                    = remote_mr_addr + mr_offset + sizeof(struct Slot);
 
                                 if (rdmaPost(
                                         IBV_WR_RDMA_WRITE, 
                                         qps[nid],               // Local Replicator's Queue Pair
-                                        local_mr_addr + mr_offset,
-                                                                // Local buffer address
-                                        slot.size,              // Buffer size
+                                        msg_base,               // Local buffer address
+                                        (sizeof(struct Slot) 
+                                            + header->size + sizeof(struct SlotCanary)),              
+                                                                // Buffer size
                                         wrkr_mr->lkey,          // Local MR LKey
-                                        slot.addr,              // Remote's address
+                                        remote_mr_addr + mr_offset,
+                                                                // Remote's address
                                         mrs[nid]->rkey          // Remotes RKey
                                         )
                                     != 0)
                                     SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Write failed.", arg_hdl);
+
+                                waitRdmaSend(qps[nid]);
                             }
 
-                            mr_offset += slot.size;
+                            mr_offset += (sizeof(struct Slot) + header->size + sizeof(struct SlotCanary));
                             mr_linfree = BUF_SIZE - mr_offset;
 
                             log_stat->offset = mr_offset;
@@ -399,14 +411,10 @@ void soren::Replicator::doPropose(uint8_t* arg_addr, size_t arg_size, uint16_t a
     else
         ;
 
-    SOREN_LOGGER_INFO(PLAYER_LOGGER, "Prepare for PROPOSE...", owner_hdl);
-
     //
     // Working with slots
     Slot* workspace = workers.at(owner_hdl).wrkspace;
     int slot_idx = workers.at(owner_hdl).ws_free_idx.load();
-
-    SOREN_LOGGER_INFO(PLAYER_LOGGER, "Sending target({}):\n- size: {}, slot: {}", reinterpret_cast<void*>(arg_addr), arg_size, slot_idx);
 
     //
     // The very first section will be used as metadata area.
@@ -421,8 +429,6 @@ void soren::Replicator::doPropose(uint8_t* arg_addr, size_t arg_size, uint16_t a
 
     __sendWorkerSignal(owner_hdl, SIG_PROPOSE);     // Let it replicate.
     __waitWorkerSignal(owner_hdl, SIG_WORKEND);
-
-    SOREN_LOGGER_INFO(PLAYER_LOGGER, "Work END signal from worker({}).", owner_hdl);
 }
 
 
@@ -469,8 +475,8 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
     std::thread player_thread(
         [](
             std::atomic<int32_t>& arg_sig,                      // Signal
-            std::atomic<int32_t>& arg_ws_free_idx,
-            Slot* arg_ws,
+            std::atomic<int32_t>& arg_slots_free_idx,
+            Slot* arg_slots,
             const int arg_hdl,                                  // Worker Handle
             
             // Local handles.
@@ -488,7 +494,7 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
 
             //
             // Local Memory Region (Buffer) tracker.
-            uint64_t    n_prop = 0;
+            uint32_t    n_prop = 0;
 
             int32_t     mr_offset = 128;
             int32_t     mr_linfree = BUF_SIZE - 128;
@@ -546,7 +552,6 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
 
                     case SIG_CONT:
                         disp_msg = false;
-                        SOREN_LOGGER_INFO(worker_logger, "Replayer({}) observing...", arg_hdl);
                         
                         {   
                             uintptr_t local_mr_addr = reinterpret_cast<uintptr_t>(wrkr_mr->addr);
@@ -555,29 +560,47 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
                             struct Slot* header
                                 = reinterpret_cast<struct Slot*>(msg_base);
                             
-                            // 1. Read the header, observe the canary
+                            // 1. Read the header, observe the canary, is the prop valid?
                             int32_t header_canary = header->canary;
                             int32_t slot_canary = 
                                 reinterpret_cast<struct SlotCanary*>(
                                     msg_base + sizeof(struct Slot) + header->size)->canary;
 
-                            if (header_canary == slot_canary) {
-                                SOREN_LOGGER_INFO(worker_logger, "Canary detected: ({})", slot_canary);
+                            // SOREN_LOGGER_INFO(worker_logger, 
+                            //     "Expected Prop({}): \n- header prop: ({}), size: {}\n- canary header/end: ({})/({})", 
+                            //     n_prop + 1, (uint32_t)header->n_prop, (uint32_t)header->size, header_canary, slot_canary);
+
+                            if ((header_canary == slot_canary) && (header->n_prop == (n_prop + 1))) {
+                                SOREN_LOGGER_INFO(worker_logger, 
+                                    "Prop({}): , Size({})\n- canary detected: ({})\n- content: {}", 
+                                    (uint32_t)header->n_prop, (uint32_t)header->size, 
+                                    (int32_t)header->canary, (char*)(header->addr));
+
+                                // Do something here, REPLAY!!
+                                
+
+
+
+
+
                             }
                             else 
-                                break;
+                                continue;
 
                             // 2. Suppose you have passed the replicated content.
 
-
                             // 3. Corrupt the received canary, and move on.
                             header->canary << 1;
+                            n_prop = header->n_prop;
+
+                            mr_offset += (sizeof(struct Slot) + header->size + sizeof(struct SlotCanary));
+                            mr_linfree = BUF_SIZE - mr_offset;
 
                             prepareNextAlignedOffset(
                                 mr_offset, mr_linfree, header->size);
                         }
                         
-                        arg_sig.store(SIG_WORKEND);
+                        // arg_sig.store(SIG_WORKEND);
                         break;
 
                     default:
@@ -600,9 +623,6 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
 
     __waitWorkerSignal(handle, SIG_READY);
     __sendWorkerSignal(handle, SIG_CONT);
-    
-    // Give a little space.
-    sleep(1.2 * (node_id + 1));
 
     SOREN_LOGGER_INFO(PLAYER_LOGGER, "Replayer thread launched:\n- handle({}), native handle({})", handle, wrkr_inst.wrkt_nhdl);
 

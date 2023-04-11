@@ -98,7 +98,7 @@ uint8_t* soren::hbwrapper::allocateBuffer(size_t arg_len, int arg_align) {
 }
 
 int soren::hbwrapper::registerMr(uint32_t arg_pd_id, uint32_t arg_mr_id, uint8_t* buf, size_t arg_len) {
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "MR({}) linked to PD({}).", arg_mr_id, arg_pd_id);
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "MR({}) => PD({}).", arg_mr_id, arg_pd_id);
     return HB_CONFIGURATOR->doCreateAndRegisterMr2(arg_pd_id, arg_mr_id, buf, arg_len);
 }
 
@@ -114,7 +114,7 @@ int soren::hbwrapper::registerRcQp(
 
         ret = HB_CONFIGURATOR->doCreateAndRegisterRcQp2(arg_pd_id, arg_qp_id, arg_send_cq_id, arg_recv_cq_id);
 
-        SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "QP({}), CQs({}/{}) linked to PD({})",
+        SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "QP({}), CQs({}/{}) => PD({})",
             arg_qp_id, arg_send_cq_id, arg_recv_cq_id, arg_pd_id);
 
         ret = HB_CONFIGURATOR->doInitQp2(arg_qp_id);        
@@ -126,7 +126,7 @@ int soren::hbwrapper::exchangeRdmaConfigs() {
     HB_CONFIGURATOR->doExportAll2(HB_EXCHANGER->getThisNodeId(), "./config/local-config.json");
     int ret = HB_EXCHANGER->setThisNodeConf("./config/local-config.json");
 
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "Exchanging RDMA configurations (via TCP)...");
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "Exchanging RDMA configs (TCP)...");
     ret = HB_EXCHANGER->doExchange();
 
     if (ret == true)
@@ -326,7 +326,7 @@ int soren::rdmaPost(
     return 0;
 }
 
-int soren::waitRdmaRead(struct ibv_qp* arg_local_qp) {
+int soren::waitRdmaSend(struct ibv_qp* arg_local_qp) {
 
     struct ibv_wc   work_completion;
     int             nwc;

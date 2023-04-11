@@ -12,7 +12,7 @@ namespace soren {
     const uint32_t REPLAYER_READY = 0xdeadface;
 
     struct __attribute__((packed)) LogStat {
-        uint64_t    n_prop;     // Current proposal number
+        uint32_t    n_prop;     // Current proposal number
         uint32_t    offset;     // MR buffer offset.
         uint32_t    dummy1;
         uint32_t    dummy2;
@@ -22,7 +22,7 @@ namespace soren {
         uint32_t    n_prop;
         uintptr_t   addr;
         uint32_t    size;
-        int32_t    canary;
+        int32_t     canary;
     };
 
     struct __attribute__((packed)) SlotCanary {

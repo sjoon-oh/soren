@@ -82,11 +82,11 @@ int main() {
 
     for (int i = 0; i < 10; i++) {
         replicator.doPropose(reinterpret_cast<uint8_t*>(buf + (i * 6)), 6);
-        sleep(0.3);
+        sleep(0.5);
     }
 
-    SOREN_LOGGER_INFO(soren_lgr, "Waiting...");
-    sleep(60);
+    SOREN_LOGGER_INFO(soren_lgr, "Waiting for 20 seconds...");
+    sleep(20);
 
 
     // replicator.doTerminateWorker(worker_handle);
