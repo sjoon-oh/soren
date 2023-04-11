@@ -22,7 +22,6 @@
 
 #include "commons.hh"
 
-
 #include <infiniband/verbs.h>
 
 // #include <infiniband/verbs.h> // OFED IB verbs
@@ -42,7 +41,8 @@ namespace soren {
         SIG_SELFRET    = 0x02,
         SIG_CONT,
         SIG_PROPOSE     = 0xff,
-        SIG_WORKEND
+        SIG_WORKEND,
+        SIG_READY,
     };
 
     struct log_entry {
@@ -58,10 +58,10 @@ namespace soren {
         Slot*                               wrkspace;       // Per-thread workspace.
         std::atomic<int32_t>                ws_free_idx;    // Signal Var.
 
-        WorkerThread() : wrkt_nhdl(0), wrk_sig(0), wrkspace(new Slot[MAX_NSLOTS]), ws_free_idx(0) { }
+        WorkerThread() : wrkt_nhdl(0), wrk_sig(0), wrkspace(new Slot[MAX_NSLOTS]), ws_free_idx(1) { }
         WorkerThread(std::thread& arg_t, std::thread::native_handle_type arg_hdl) :
             wrkt(std::move(arg_t)), wrkt_nhdl(arg_hdl), 
-            wrk_sig(0), wrkspace(new Slot[MAX_NSLOTS]), ws_free_idx(0) { }
+            wrk_sig(0), wrkspace(new Slot[MAX_NSLOTS]), ws_free_idx(1) { }
 
         ~WorkerThread() { delete[] wrkspace; }
     };
@@ -94,10 +94,11 @@ namespace soren {
         // Partitioner                 judge;
         std::atomic<uint32_t>       sub_par;    // Local sub partitions
 
+        // Test func.
         
     public: 
         Player(uint32_t, uint16_t, uint32_t, uint32_t);
-        ~Player() = default;
+        ~Player() { for (auto& elem: mr_remote_hdls) delete elem; };
 
         bool doAddLocalMr(uint32_t, struct ibv_mr*);
         bool doAddLocalQp(uint32_t, struct ibv_qp*);
@@ -135,10 +136,16 @@ namespace soren {
      */
     class Replayer final : public Player {
     private:        
+        int __findEmptyWorkerHandle();
+        int __findNeighborAliveWorkerHandle(uint32_t);
 
     public:
+        Replayer(uint32_t, uint16_t, uint32_t, uint32_t);
+        ~Replayer();
 
-        int doLaunchPlayer() { return 0; };
-        int doUpdateConfig() { return 0; };
+        int doLaunchPlayer(uint32_t, int);
     };
+
+    int __testRdmaWrite(struct ibv_qp*, struct ibv_mr*, struct ibv_mr*, int, int);
+    int __testRdmaRead(struct ibv_qp*, struct ibv_mr*, struct ibv_mr*, int, int);
 }

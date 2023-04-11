@@ -285,12 +285,10 @@ struct ibv_mr* soren::hbwrapper::getRemoteMinimalMr(uint32_t arg_nid, uint32_t a
     return mr;
 }
 
-
-
 // Not wrapped, but pure.
 int soren::rdmaPost(
-        int                     arg_opc,
-        struct ibv_qp*        arg_qp,
+        enum ibv_wr_opcode      arg_opc,
+        struct ibv_qp*          arg_qp,
         uintptr_t               arg_addr,
         uint32_t                arg_size, 
         uint32_t                arg_lk,
@@ -311,7 +309,7 @@ int soren::rdmaPost(
 
     work_req.wr_id      = 0;
     work_req.num_sge    = 1;
-    work_req.opcode     = IBV_WR_RDMA_WRITE;
+    work_req.opcode     = arg_opc;
     work_req.send_flags = IBV_SEND_SIGNALED;
     work_req.wr_id      = 0;
     work_req.sg_list    = &sg_elem;
@@ -326,4 +324,21 @@ int soren::rdmaPost(
     if (ret != 0) return -1;
 
     return 0;
+}
+
+int soren::waitRdmaRead(struct ibv_qp* arg_local_qp) {
+
+    struct ibv_wc   work_completion;
+    int             nwc;
+
+    do {
+        nwc = ibv_poll_cq(arg_local_qp->send_cq, 1, &work_completion);
+    } while (nwc == 0);
+
+    switch (work_completion.status) {
+        case IBV_WC_SUCCESS:
+            return 0;
+        default:
+            return work_completion.status;
+    }
 }

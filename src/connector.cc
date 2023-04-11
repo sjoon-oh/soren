@@ -8,6 +8,8 @@
 #include "hartebeest-wrapper.hh"
 #include "connector.hh"
 
+#include "commons.hh"
+
 namespace soren {
 
     static Logger CONNECTOR_LOGGER("SOREN/CONNECTOR", "soren_connector.log");
@@ -66,7 +68,7 @@ soren::Connector::Connector(uint32_t arg_subpar) {
             
             if (pl_id != node_id) {
                 hbwrapper::connectRcQps(
-                    QPID_REPLICATOR(node_id, pl_id, sp), pl_id, COMMON_PD, QPID_REPLAYER(pl_id, sp));
+                    QPID_REPLICATOR(node_id, pl_id, sp), pl_id, COMMON_PD, QPID_REPLAYER(node_id, sp));
                 hbwrapper::connectRcQps(
                     QPID_REPLAYER(pl_id, sp), pl_id, COMMON_PD, QPID_REPLICATOR(pl_id, node_id, sp));
             }
@@ -89,6 +91,8 @@ int soren::Connector::getNumPlayers() { return nplayers; }
 
 void soren::prepareNextAlignedOffset(int& arg_offs, int& arg_free, int arg_tarsize) {
                             
+    arg_tarsize += sizeof(struct Slot) + sizeof(struct SlotCanary);
+
     // 1. Align, by 64.
     if ((arg_offs % ALIGNMENT) != 0) {
         arg_offs += (ALIGNMENT - (arg_offs % ALIGNMENT));
@@ -97,7 +101,7 @@ void soren::prepareNextAlignedOffset(int& arg_offs, int& arg_free, int arg_tarsi
     
     // 2. Size remaining lack?
     if (arg_tarsize > (arg_free)) {
-        arg_offs = 0;
-        arg_free = BUF_SIZE;
+        arg_offs = 128;
+        arg_free = BUF_SIZE - 128;
     }
 }

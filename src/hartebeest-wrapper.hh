@@ -43,6 +43,8 @@ namespace soren {
     }
 
     int rdmaPost(
-        int, struct ibv_qp*, 
+        enum ibv_wr_opcode, struct ibv_qp*, 
         uintptr_t, uint32_t, uint32_t, uintptr_t, uint32_t);
+
+    int waitRdmaRead(struct ibv_qp*);
 }

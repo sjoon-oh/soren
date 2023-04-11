@@ -12,4 +12,6 @@ rm *log
 # ./build/soren-partitioner.test
 # ./build/soren-connector.test
 
+./make.sh
+wait
 ./build/soren-$1.test
