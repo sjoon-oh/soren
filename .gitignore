@@ -33,13 +33,17 @@
 *.app
 
 # This repo-specific:
+.vscode
+
 build/*
 hartebeest/build/*
-*.log
-.vscode
+
 config/eth-config.json
 config/local-config.json
 post-all-conf.json
+
+*.log
+*.txt
 
 
 # CMakes

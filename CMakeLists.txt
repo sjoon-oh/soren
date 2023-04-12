@@ -51,50 +51,50 @@ set(SOREN_SUFFIX_TEST   test)
 #
 # --------------------------------------
 # Target: SOREN_TEST_HEARTBEAT
-set(SOREN_TEST_HEARTBEAT ${SOREN_PREFIX}-heartbeat.${SOREN_SUFFIX_TEST})
-file(GLOB SOREN_TEST_HEARTBEAT_SRCFILES 
-    CONFIGURE_DEPENDS 
-    ${CMAKE_SOURCE_DIR}/src/test/test-heartbeat.cc
-)
+# set(SOREN_TEST_HEARTBEAT ${SOREN_PREFIX}-heartbeat.${SOREN_SUFFIX_TEST})
+# file(GLOB SOREN_TEST_HEARTBEAT_SRCFILES 
+#     CONFIGURE_DEPENDS 
+#     ${CMAKE_SOURCE_DIR}/src/test/test-heartbeat.cc
+# )
 
-add_executable(
-    ${SOREN_TEST_HEARTBEAT}
-    ${SOREN_TEST_HEARTBEAT_SRCFILES}
-)
-target_link_libraries(${SOREN_TEST_HEARTBEAT} PUBLIC ${LIBSOREN})
+# add_executable(
+#     ${SOREN_TEST_HEARTBEAT}
+#     ${SOREN_TEST_HEARTBEAT_SRCFILES}
+# )
+# target_link_libraries(${SOREN_TEST_HEARTBEAT} PUBLIC ${LIBSOREN})
 
 #
 # --------------------------------------
 # Target: SOREN_TEST_PARTITION
-set(SOREN_TEST_PARTITION
-    ${SOREN_PREFIX}-partitioner.${SOREN_SUFFIX_TEST})
-    file(GLOB SOREN_TEST_PARTITION_SRCFILES 
-    CONFIGURE_DEPENDS 
-    ${CMAKE_SOURCE_DIR}/src/test/test-heartbeat.cc
-)
+# set(SOREN_TEST_PARTITION
+#     ${SOREN_PREFIX}-partitioner.${SOREN_SUFFIX_TEST})
+#     file(GLOB SOREN_TEST_PARTITION_SRCFILES 
+#     CONFIGURE_DEPENDS 
+#     ${CMAKE_SOURCE_DIR}/src/test/test-heartbeat.cc
+# )
 
-add_executable(
-    ${SOREN_TEST_PARTITION}  
-    ${SOREN_TEST_PARTITION_SRCFILES}
-)
-target_link_libraries(${SOREN_TEST_PARTITION} PUBLIC ${LIBSOREN})
+# add_executable(
+#     ${SOREN_TEST_PARTITION}  
+#     ${SOREN_TEST_PARTITION_SRCFILES}
+# )
+# target_link_libraries(${SOREN_TEST_PARTITION} PUBLIC ${LIBSOREN})
 
 
 #
 # --------------------------------------
 # Target: SOREN_TEST_CONNECTOR
-set(SOREN_TEST_CONNECTOR
-    ${SOREN_PREFIX}-connector.${SOREN_SUFFIX_TEST})
-    file(GLOB SOREN_TEST_CONNECTOR_SRCFILES 
-    CONFIGURE_DEPENDS 
-    ${CMAKE_SOURCE_DIR}/src/test/test-connector.cc
-)
+# set(SOREN_TEST_CONNECTOR
+#     ${SOREN_PREFIX}-connector.${SOREN_SUFFIX_TEST})
+#     file(GLOB SOREN_TEST_CONNECTOR_SRCFILES 
+#     CONFIGURE_DEPENDS 
+#     ${CMAKE_SOURCE_DIR}/src/test/test-connector.cc
+# )
 
-add_executable(
-    ${SOREN_TEST_CONNECTOR}  
-    ${SOREN_TEST_CONNECTOR_SRCFILES}
-)
-target_link_libraries(${SOREN_TEST_CONNECTOR} PUBLIC ${LIBSOREN})
+# add_executable(
+#     ${SOREN_TEST_CONNECTOR}  
+#     ${SOREN_TEST_CONNECTOR_SRCFILES}
+# )
+# target_link_libraries(${SOREN_TEST_CONNECTOR} PUBLIC ${LIBSOREN})
 
 #
 # --------------------------------------
@@ -111,3 +111,19 @@ add_executable(
     ${SOREN_TEST_DEMO_SRCFILES}
 )
 target_link_libraries(${SOREN_TEST_DEMO} PUBLIC ${LIBSOREN})
+
+#
+# --------------------------------------
+# Target: SOREN_TEST_DEMO
+set(SOREN_TEST_DEMO_SP
+    ${SOREN_PREFIX}-demo-subpar.${SOREN_SUFFIX_TEST})
+    file(GLOB SOREN_TEST_DEMO_SP_SRCFILES 
+    CONFIGURE_DEPENDS 
+    ${CMAKE_SOURCE_DIR}/src/test/test-demo-subpar.cc
+)
+
+add_executable(
+    ${SOREN_TEST_DEMO_SP}  
+    ${SOREN_TEST_DEMO_SP_SRCFILES}
+)
+target_link_libraries(${SOREN_TEST_DEMO_SP} PUBLIC ${LIBSOREN})

@@ -34,7 +34,7 @@ namespace soren {
     const int MAX_REPLICATOR_WORKER = MAX_NWORKER / 2;
     const int MAX_REPLAYER_WORKER = MAX_NWORKER;
 
-    const int MAX_NSLOTS    = 128;
+    const int MAX_NSLOTS    = 256;
 
     enum {
         SIG_PAUSE       = 0x00,
@@ -43,6 +43,7 @@ namespace soren {
         SIG_PROPOSE     = 0xff,
         SIG_WORKEND,
         SIG_READY,
+        SIG_NOTIFIED,
     };
 
     struct log_entry {
@@ -56,12 +57,17 @@ namespace soren {
         std::atomic<int32_t>                wrk_sig;        // Signal Var.
 
         Slot*                               wrkspace;       // Per-thread workspace.
-        std::atomic<int32_t>                ws_free_idx;    // Signal Var.
+        std::atomic<u_char>                 next_proc_sidx; // Next to process.
+        std::atomic<u_char>                 curr_proc_sidx;
+        std::atomic<int32_t>                outstanding;
+                                                            // Records the latest processed slot idx.
 
-        WorkerThread() : wrkt_nhdl(0), wrk_sig(0), wrkspace(new Slot[MAX_NSLOTS]), ws_free_idx(1) { }
+        WorkerThread() : wrkt_nhdl(0), wrk_sig(0), wrkspace(new Slot[MAX_NSLOTS]), 
+            next_proc_sidx(0), outstanding(0), curr_proc_sidx(128) { }
         WorkerThread(std::thread& arg_t, std::thread::native_handle_type arg_hdl) :
-            wrkt(std::move(arg_t)), wrkt_nhdl(arg_hdl), 
-            wrk_sig(0), wrkspace(new Slot[MAX_NSLOTS]), ws_free_idx(1) { }
+            wrkt(std::move(arg_t)), wrkt_nhdl(arg_hdl), wrk_sig(0), wrkspace(new Slot[MAX_NSLOTS]), 
+            next_proc_sidx(0), outstanding(0), curr_proc_sidx(128)
+                { }
 
         ~WorkerThread() { delete[] wrkspace; }
     };
@@ -71,6 +77,7 @@ namespace soren {
     class Player {
     protected:
         uint32_t                    node_id;
+        uint32_t                    sub_par;    // Local sub partitions
         
         //
         // These resources are just borrowed (copied) version. 
@@ -92,7 +99,6 @@ namespace soren {
 
         // Partition related:
         // Partitioner                 judge;
-        std::atomic<uint32_t>       sub_par;    // Local sub partitions
 
         // Test func.
         
@@ -127,7 +133,7 @@ namespace soren {
         Replicator(uint32_t, uint16_t, uint32_t, uint32_t);
         ~Replicator() = default;
 
-        int doLaunchPlayer(uint32_t);
+        int doLaunchPlayer(uint32_t, int);
         void doPropose(uint8_t*, size_t, uint16_t = 0);
     };
 

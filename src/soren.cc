@@ -26,7 +26,7 @@ namespace soren {
 
 void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
 
-    INST_CONNECTOR.reset(new Connector);
+    INST_CONNECTOR.reset(new Connector(arg_subpar));
 
     glob_node_id   = INST_CONNECTOR->getNodeId();
     glob_nplayers  = hbwrapper::getNumPlayers();
@@ -82,7 +82,8 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
         }
     }
 
-    INST_REPLICATOR->doLaunchPlayer(glob_nplayers);
+    for (int sp = 0; sp < arg_subpar; sp++)
+        INST_REPLICATOR->doLaunchPlayer(glob_nplayers, sp);
 }
 
 void soren::cleanSoren() {

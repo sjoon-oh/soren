@@ -73,7 +73,7 @@ int main() {
         }
     }
 
-    worker_handle = replicator.doLaunchPlayer(num_players);
+    worker_handle = replicator.doLaunchPlayer(num_players, 0);
 
     SOREN_LOGGER_INFO(soren_lgr, "Replicator worker handle: {}", worker_handle);
 

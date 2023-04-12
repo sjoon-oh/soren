@@ -192,7 +192,7 @@ hartebeest::Qp* soren::hbwrapper::searchQp(uint32_t arg_nid, uint32_t arg_pd_id,
             break; 
     }
 
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "- Node {} QP({}): QPN({}), PID({}), PLID({})", nctx->nid, qp->qp_id, qp->qpn, qp->pid, qp->plid);
+    // SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "- Node {} QP({}): QPN({}), PID({}), PLID({})", nctx->nid, qp->qp_id, qp->qpn, qp->pid, qp->plid);
 
     return qp;
 }
