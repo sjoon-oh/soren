@@ -33,7 +33,7 @@ int main() {
             if (i != node_id) {
                 
                 replayer.doAddLocalMr(
-                    MRID(i, sp), soren::hbwrapper::getLocalMr(MRID(i, sp))
+                    GET_MR_GLOBAL(i, sp), soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(i, sp))
                 );
             }
         }
@@ -54,19 +54,19 @@ int main() {
         for (int sp = 0; sp < SUB_PARTITON; sp++) {
             if (i == node_id) {
                 replicator.doAddLocalMr(
-                    MRID(node_id, sp),
-                    soren::hbwrapper::getLocalMr(MRID(node_id, sp))); // Replicator's MR
+                    GET_MR_GLOBAL(node_id, sp),
+                    soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(node_id, sp))); // Replicator's MR
             }
 
             if (i != node_id) { // Queue Pair for others to send.
                 replicator.doAddLocalQp(
-                    QPID_REPLICATOR(node_id, i, sp), 
-                    soren::hbwrapper::getLocalQp(QPID_REPLICATOR(node_id, i, sp)));
+                    GET_QP_REPLICATOR(node_id, i, sp), 
+                    soren::hbwrapper::getLocalQp(GET_QP_REPLICATOR(node_id, i, sp)));
 
                 replicator.doAddRemoteMr(
-                    MRID(i, sp), 
+                    GET_MR_GLOBAL(i, sp), 
                     soren::hbwrapper::getRemoteMinimalMr(
-                        i, soren::COMMON_PD, MRID(node_id, sp)
+                        i, soren::COMMON_PD, GET_MR_GLOBAL(node_id, sp)
                     )
                 );
             }

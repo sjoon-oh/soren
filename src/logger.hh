@@ -36,7 +36,7 @@ namespace soren {
             file_lgr->set_pattern(formatted_log);
 
             console_lgr->set_level(spdlog::level::info);    // Make all visible.
-            file_lgr->set_level(spdlog::level::info);       // Above info.
+            file_lgr->set_level(spdlog::level::info);        // Above info.
 
             // Use this.
             ms_lgr = std::unique_ptr<spdlog::logger>(new spdlog::logger(arg_lgr_name, {console_lgr, file_lgr}));
@@ -45,8 +45,23 @@ namespace soren {
         spdlog::logger* getLogger() { return ms_lgr.get(); }
     };
 
+    class LoggerFileOnly {
+        std::shared_ptr<spdlog::logger>     file_lgr;       // Prints out to the file.
+
+    public:
+        LoggerFileOnly(std::string arg_lgr_name, std::string arg_filen = "soren.log") {
+
+            file_lgr = spdlog::basic_logger_mt(arg_lgr_name, arg_filen);
+
+            file_lgr->set_level(spdlog::level::info);        // Above info.
+        }
+
+        spdlog::logger* getLogger() { return file_lgr.get(); }
+    };
+
 }
 
 // Access loggers using the macros defined below.
 #define SOREN_LOGGER_INFO(INSTANCE, ...)        do {(INSTANCE).getLogger()->info(__VA_ARGS__); } while(0)
+#define SOREN_LOGGER_DEBUG(INSTANCE, ...)       do {(INSTANCE).getLogger()->debug(__VA_ARGS__); } while(0)
 #define SOREN_LOGGER_ERROR(INSTANCE, ...)       do {(INSTANCE).getLogger()->error(__VA_ARGS__); } while(0)

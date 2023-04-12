@@ -95,3 +95,19 @@ add_executable(
     ${SOREN_TEST_CONNECTOR_SRCFILES}
 )
 target_link_libraries(${SOREN_TEST_CONNECTOR} PUBLIC ${LIBSOREN})
+
+#
+# --------------------------------------
+# Target: SOREN_TEST_DEMO
+set(SOREN_TEST_DEMO
+    ${SOREN_PREFIX}-demo.${SOREN_SUFFIX_TEST})
+    file(GLOB SOREN_TEST_DEMO_SRCFILES 
+    CONFIGURE_DEPENDS 
+    ${CMAKE_SOURCE_DIR}/src/test/test-demo.cc
+)
+
+add_executable(
+    ${SOREN_TEST_DEMO}  
+    ${SOREN_TEST_DEMO_SRCFILES}
+)
+target_link_libraries(${SOREN_TEST_DEMO} PUBLIC ${LIBSOREN})

@@ -4,16 +4,10 @@
  * Project SOREN
  */
 
-#include "logger.hh"
 #include "hartebeest-wrapper.hh"
 #include "connector.hh"
 
 #include "commons.hh"
-
-namespace soren {
-
-    static Logger CONNECTOR_LOGGER("SOREN/CONNECTOR", "soren_connector.log");
-}
 
 soren::Connector::Connector(uint32_t arg_subpar) {
     hbwrapper::initHartebeest();
@@ -33,8 +27,7 @@ soren::Connector::Connector(uint32_t arg_subpar) {
         for (int sp = 0; sp < arg_subpar; sp++) {
 
             buf_addr = hbwrapper::allocateBuffer(BUF_SIZE, 64);
-            if (hbwrapper::registerMr(COMMON_PD, MRID(pl_id, sp), buf_addr, BUF_SIZE) != 0) {
-                SOREN_LOGGER_ERROR(CONNECTOR_LOGGER, "MR creation error.");
+            if (hbwrapper::registerMr(COMMON_PD, GET_MR_GLOBAL(pl_id, sp), buf_addr, BUF_SIZE) != 0) {
                 abort();
             }
         }
@@ -46,16 +39,16 @@ soren::Connector::Connector(uint32_t arg_subpar) {
             if (pl_id != node_id) {
                 hbwrapper::registerRcQp(
                     COMMON_PD, 
-                    QPID_REPLICATOR(node_id, pl_id, sp),
-                    SCQID_REPLICATOR(node_id, pl_id, sp),
-                    RCQID_REPLICATOR(node_id, pl_id, sp)
+                    GET_QP_REPLICATOR(node_id, pl_id, sp),
+                    GET_SCQ_REPLICATOR(node_id, pl_id, sp),
+                    GET_RCQ_REPLICATOR(node_id, pl_id, sp)
                     );
                 
                 hbwrapper::registerRcQp(
                     COMMON_PD,
-                    QPID_REPLAYER(pl_id, sp),
-                    SCQID_REPLAYER(pl_id, sp),
-                    RCQID_REPLAYER(pl_id, sp)
+                    GET_QP_REPLAYER(pl_id, sp),
+                    GET_SCQ_REPLAYER(pl_id, sp),
+                    GET_RCQ_REPLAYER(pl_id, sp)
                 );
             }
         }
@@ -68,14 +61,12 @@ soren::Connector::Connector(uint32_t arg_subpar) {
             
             if (pl_id != node_id) {
                 hbwrapper::connectRcQps(
-                    QPID_REPLICATOR(node_id, pl_id, sp), pl_id, COMMON_PD, QPID_REPLAYER(node_id, sp));
+                    GET_QP_REPLICATOR(node_id, pl_id, sp), pl_id, COMMON_PD, GET_QP_REPLAYER(node_id, sp));
                 hbwrapper::connectRcQps(
-                    QPID_REPLAYER(pl_id, sp), pl_id, COMMON_PD, QPID_REPLICATOR(pl_id, node_id, sp));
+                    GET_QP_REPLAYER(pl_id, sp), pl_id, COMMON_PD, GET_QP_REPLICATOR(pl_id, node_id, sp));
             }
         }
     }
-
-    SOREN_LOGGER_INFO(CONNECTOR_LOGGER, "Connection setting end.");
 }
 
 

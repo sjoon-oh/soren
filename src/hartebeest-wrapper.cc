@@ -67,12 +67,12 @@ void soren::hbwrapper::cleanHartebeest() {
 void soren::hbwrapper::initRdmaConfigurator() {
 
     SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "RdmaConfigurator setup sequence start.");
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > Getting HCA Device...");
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "- Getting HCA Device...");
 
     if (HB_CONFIGURATOR->doInitDevice2() != 0)
-        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, " > Failed.");
+        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, "- Failed.");
 
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > OK");
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "- OK");
 }
 
 bool soren::hbwrapper::initConfigFileExchanger() {
@@ -80,11 +80,11 @@ bool soren::hbwrapper::initConfigFileExchanger() {
     SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "ConfigFileExchanger setup sequence start.");
 
     if (HB_EXCHANGER->doReadConfigFile("./config/eth-config.json") == false) {
-        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, " > Failed.");
+        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, "- Failed.");
         return false;
     }
 
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > OK");
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "- OK");
     return true;
 }
 
@@ -98,7 +98,7 @@ uint8_t* soren::hbwrapper::allocateBuffer(size_t arg_len, int arg_align) {
 }
 
 int soren::hbwrapper::registerMr(uint32_t arg_pd_id, uint32_t arg_mr_id, uint8_t* buf, size_t arg_len) {
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "MR({}) => PD({}).", arg_mr_id, arg_pd_id);
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "MR({}) => PD({})", arg_mr_id, arg_pd_id);
     return HB_CONFIGURATOR->doCreateAndRegisterMr2(arg_pd_id, arg_mr_id, buf, arg_len);
 }
 
@@ -130,9 +130,9 @@ int soren::hbwrapper::exchangeRdmaConfigs() {
     ret = HB_EXCHANGER->doExchange();
 
     if (ret == true)
-        SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > OK.");
+        SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "- OK.");
     else {
-        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, " > Fail.");
+        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, "- Fail.");
         abort();
     }
 
@@ -150,12 +150,12 @@ int soren::hbwrapper::exchangeRdmaConfigs() {
     );
 
     if (NETWORK_RDMA_CONTEXT.num_nodes != HB_EXCHANGER->getNumOfPlayers()) {
-        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, " > Exported context mismatch.");
+        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, "- Exported context mismatch.");
         return -1;
     }
 
     SOREN_LOGGER_INFO(
-        hb_hbwrapper_lgr, " > OK. Exported context: {} nodes in total found.", 
+        hb_hbwrapper_lgr, "- OK. Exported context: {} nodes in total found.", 
         NETWORK_RDMA_CONTEXT.num_nodes
     );
     
@@ -192,7 +192,7 @@ hartebeest::Qp* soren::hbwrapper::searchQp(uint32_t arg_nid, uint32_t arg_pd_id,
             break; 
     }
 
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, " > Node {} QP({}): QPN({}), PID({}), PLID({})", nctx->nid, qp->qp_id, qp->qpn, qp->pid, qp->plid);
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "- Node {} QP({}): QPN({}), PID({}), PLID({})", nctx->nid, qp->qp_id, qp->qpn, qp->pid, qp->plid);
 
     return qp;
 }
@@ -236,7 +236,7 @@ int soren::hbwrapper::connectRcQps(
         uint32_t arg_remote_pd_id,  // Remote Protection Domain ID
         uint32_t arg_remote_qp_id   // Remote Queue Pair ID
         ) {
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "Connecting QP({}) to QP({})", arg_qp_id, arg_remote_qp_id);
+    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "Local QP({}) <=> Remote QP({})", arg_qp_id, arg_remote_qp_id);
     
     hartebeest::Qp* qp = searchQp(arg_remote_nid, arg_remote_pd_id, arg_remote_qp_id);
     return HB_CONFIGURATOR->doConnectRcQp2(arg_qp_id, qp->pid, qp->qpn, qp->plid);
@@ -326,7 +326,7 @@ int soren::rdmaPost(
     return 0;
 }
 
-int soren::waitRdmaSend(struct ibv_qp* arg_local_qp) {
+int soren::waitSingleSCqe(struct ibv_qp* arg_local_qp) {
 
     struct ibv_wc   work_completion;
     int             nwc;
@@ -335,10 +335,8 @@ int soren::waitRdmaSend(struct ibv_qp* arg_local_qp) {
         nwc = ibv_poll_cq(arg_local_qp->send_cq, 1, &work_completion);
     } while (nwc == 0);
 
-    switch (work_completion.status) {
-        case IBV_WC_SUCCESS:
-            return 0;
-        default:
-            return work_completion.status;
-    }
+    if (work_completion.status != IBV_WC_SUCCESS)
+        return -1;
+    
+    return nwc;
 }

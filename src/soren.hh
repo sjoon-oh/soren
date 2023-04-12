@@ -20,3 +20,13 @@
 //  Check the document for more info.
 #include "player.hh"
 #include "connector.hh"
+
+namespace soren {
+
+    void initSoren(uint32_t = 10, uint32_t = 1);
+    void cleanSoren();
+
+    Connector* getConnector();
+    Replayer* getReplayer();
+    Replicator* getReplicator();
+}

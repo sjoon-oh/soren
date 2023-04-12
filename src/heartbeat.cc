@@ -76,7 +76,7 @@ void soren::HeartbeatLocalRunner::doLaunchRunner() {
 
     runner.detach();
 
-    SOREN_LOGGER_INFO(HEARTBEAT_LOGGER, "HeartbeatLocalRunner launched: Handle {}", runner_handle);
+    SOREN_LOGGER_DEBUG(HEARTBEAT_LOGGER, "HeartbeatLocalRunner launched: Handle {}", runner_handle);
 }
 
 // This doKillRunner stops the heartbeat thread. 
@@ -85,7 +85,7 @@ void soren::HeartbeatLocalRunner::doLaunchRunner() {
 
 void soren::HeartbeatLocalRunner::doKillRunner() {
     
-    SOREN_LOGGER_INFO(HEARTBEAT_LOGGER, "HeartbeatLocalRunner killing: Handle {}", runner_handle);
+    SOREN_LOGGER_DEBUG(HEARTBEAT_LOGGER, "HeartbeatLocalRunner killing: Handle {}", runner_handle);
     pthread_cancel(static_cast<pthread_t>(runner_handle));
 }
 

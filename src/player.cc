@@ -7,7 +7,6 @@
 // #include <memory>
 #include <array>
 #include <string>
-#include <iostream>
 
 #include "logger.hh"
 #include "player.hh"
@@ -30,7 +29,6 @@ void soren::Player::__sendWorkerSignal(uint32_t arg_hdl, int32_t arg_sig) {
 
     if (arg_sig == SIG_SELFRET) {
         // Clean up
-        workers.at(arg_hdl).wrk_sig.store(SIG_PAUSE);
         workers.at(arg_hdl).wrkt_nhdl = 0;
     }
 }
@@ -154,7 +152,8 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers) {
             
 
             std::string log_fname = "soren_replicator_wt_" + std::to_string(arg_hdl) + ".log";
-            Logger worker_logger("SOREN/REPLICATOR/W", log_fname);
+            std::string logger_name = "SOREN/RELPICATOR/W" + std::to_string(arg_hdl);
+            LoggerFileOnly worker_logger(logger_name, log_fname);
 
             //
             // Local Memory Region (Buffer) tracker.
@@ -165,7 +164,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers) {
 
             //
             // Prepare resources for RDMA operations.
-            uint32_t wrkr_mr_id = MRID(arg_nid, arg_hdl);
+            uint32_t wrkr_mr_id = GET_MR_GLOBAL(arg_nid, arg_hdl);
             struct ibv_mr* wrkr_mr = arg_mr_hdls.find(wrkr_mr_id)->second;
             struct ibv_qp** qps = new struct ibv_qp*[arg_npl]; 
             struct ibv_mr** mrs = new struct ibv_mr*[arg_npl]; // Holds remote mrs.
@@ -179,8 +178,8 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers) {
                         mrs[nid] = nullptr;
 
                     } else {
-                        qps[nid] = arg_qp_hdls.find(QPID_REPLICATOR(arg_nid, nid, sp))->second;
-                        mrs[nid] = arg_mr_hdls.find(MRID(nid, sp))->second;
+                        qps[nid] = arg_qp_hdls.find(GET_QP_REPLICATOR(arg_nid, nid, sp))->second;
+                        mrs[nid] = arg_mr_hdls.find(GET_MR_GLOBAL(nid, sp))->second;
                     }
             }
 
@@ -221,7 +220,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers) {
                         SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Read for LogStat failed.", arg_hdl);
                     }
                     else {
-                        waitRdmaSend(qps[nid]);
+                        waitSingleSCqe(qps[nid]);
 
                         if (n_prop < log_stat->n_prop) {
                             n_prop = log_stat->n_prop;
@@ -355,7 +354,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers) {
                                     != 0)
                                     SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Write failed.", arg_hdl);
 
-                                waitRdmaSend(qps[nid]);
+                                waitSingleSCqe(qps[nid]);
                             }
 
                             mr_offset += (sizeof(struct Slot) + header->size + sizeof(struct SlotCanary));
@@ -490,7 +489,8 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
         ) {
             
             std::string log_fname = "soren_replayer_wt_" + std::to_string(arg_hdl) + ".log";
-            Logger worker_logger("SOREN/REPLAYER/W", log_fname);
+            std::string logger_name = "SOREN/REPLAYER/W" + std::to_string(arg_hdl);
+            LoggerFileOnly worker_logger(logger_name, log_fname);
 
             //
             // Local Memory Region (Buffer) tracker.
@@ -501,7 +501,7 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
 
             //
             // Prepare resources for RDMA operations.
-            uint32_t wrkr_mr_id = MRID(arg_from_nid, arg_cur_sp);
+            uint32_t wrkr_mr_id = GET_MR_GLOBAL(arg_from_nid, arg_cur_sp);
             struct ibv_mr* wrkr_mr = arg_mr_hdls.find(wrkr_mr_id)->second;
 
             //
