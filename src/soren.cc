@@ -1,5 +1,5 @@
 /* github.com/sjoon-oh/soren
- * Author: Sukjoon Oh, sjoon@kaist.ac.kr
+ * @author: Sukjoon Oh, sjoon@kaist.ac.kr
  * 
  * Project SOREN
  */
@@ -61,10 +61,13 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     // 
     // Note that all Memory Regions have thsir distinct IDs, based on its 
     // node ID and sub partitions.
-    //.
+    // For other node IDs, a machine should launch Replayers (receivers) to handle
+    // the replications.
+    //
     for (int nid = 0; nid < glob_nplayers; nid++) {
         for (int sp = 0; sp < arg_subpar; sp++) {
-            if (nid != glob_node_id) 
+            if (nid != glob_node_id)            // For this node ID 'some_id', do not launch replayer,
+                                                // since it is 'some_id's responsibility to let data copied.
                 INST_REPLAYER->doAddLocalMr(
                     GET_MR_GLOBAL(nid, sp),     // Globally decided MR ID. Decided across the nodes.
                     soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(nid, sp))
@@ -72,6 +75,12 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
         }
     }
 
+    // Note that there is a single replication. 
+    //  Each threads are managed by an instance. 
+    //  Call doLaunchPlayer() to let a thread run.
+    // 
+    // A thread is written in lambda, thus refer to replayer.cc file.
+    //
     for (int nid = 0; nid < glob_nplayers; nid++) {
         if (nid != glob_node_id) {
             for (int sp = 0; sp < arg_subpar; sp++)
@@ -80,24 +89,41 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     }
 
     //
-    // Initiate the replicator
+    // Initiate the replicator. If this node ID is 'some_id', 
+    //  launch a replicator thread that distributes data in 'some_id' space.
+    // Before initiating Replicator worker threads,
+    //  make sure that all replayers in a same node are initiated.
     INST_REPLICATOR.reset(new Replicator(glob_node_id, glob_nplayers, arg_ranger, arg_subpar));
 
-
+    //
+    // A replicator (or its threads) is the one who do the RDMA writes/reads. 
+    // Unlike the replicator who only needs Memory Region (for polling),
+    // the replicator threads should have both MRs and QPs.
     for (int nid = 0; nid < glob_nplayers; nid++) {
         for (int sp = 0; sp < arg_subpar; sp++) {
-            if (nid == glob_node_id) {
-                INST_REPLICATOR->doAddLocalMr(
-                    GET_MR_GLOBAL(glob_node_id, sp),
-                    soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(glob_node_id, sp))); // Replicator's MR
+            if (nid == glob_node_id) {                      // For this node ID 'some_id', 
+                INST_REPLICATOR->doAddLocalMr(              // register a local MR.
+                    GET_MR_GLOBAL(glob_node_id, sp),        // using globally decided MR ID, decided across the nodes.
+                    soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(glob_node_id, sp)));
             }
 
             if (nid != glob_node_id) { // Queue Pair for others to send.
                 INST_REPLICATOR->doAddLocalQp(
                     GET_QP_REPLICATOR(glob_node_id, nid, sp), 
                     soren::hbwrapper::getLocalQp(GET_QP_REPLICATOR(glob_node_id, nid, sp)));
+                
+                // Now, the replicator should hold additional information such as 
+                // remote's Memory Region RKEY, starting address, and size.
+                // Without these information, any RDMA read or writes will fail. 
+                //
+                // The Connector module will have all RDMA information ready 
+                // thanks to Hartebeest. 
+                // doAddRemoteMr() inserts remote Replicator's Memory Region information
+                // in ibv_mr struture. This is minimally filled. Only <rkey, addr, length>
+                // is valid (if not local).
+                //
 
-                INST_REPLICATOR->doAddRemoteMr(
+                INST_REPLICATOR->doAddRemoteMr(             
                     GET_MR_GLOBAL(nid, sp), 
                     soren::hbwrapper::getRemoteMinimalMr(
                         nid, soren::COMMON_PD, GET_MR_GLOBAL(glob_node_id, sp)
@@ -107,24 +133,32 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
         }
     }
 
+    //
+    // Launch the replicator threads. If this node ID is 'some_id', 
     for (int sp = 0; sp < arg_subpar; sp++)
         INST_REPLICATOR->doLaunchPlayer(glob_nplayers, sp);
 }
 
+//
+// Do allocated resource clean ups.
 void soren::cleanSoren() {
 
+    // Kill all threads. 
+    // This do the soft-landing of each thread, rather than forceful killing.
     for (int sp = 0; sp < soren::MAX_NWORKER; sp++) {
         INST_REPLAYER->doTerminateWorker(sp);
         INST_REPLICATOR->doTerminateWorker(sp);
     }
 
-    sleep(10);
+    sleep(10);      // Give some space. Will ya?
 
+    //
+    // Call dtors of instances.
     INST_CONNECTOR.release();
     INST_REPLAYER.release();
     INST_REPLICATOR.release();
 }
 
-soren::Connector* soren::getConnector() { return INST_CONNECTOR.get(); }
-soren::Replayer* soren::getReplayer() { return INST_REPLAYER.get(); }
-soren::Replicator* soren::getReplicator() { return INST_REPLICATOR.get(); }
+soren::Connector*   soren::getConnector() { return INST_CONNECTOR.get(); }
+soren::Replayer*    soren::getReplayer() { return INST_REPLAYER.get(); }
+soren::Replicator*  soren::getReplicator() { return INST_REPLICATOR.get(); }

@@ -1,6 +1,6 @@
 #pragma once
 /* github.com/sjoon-oh/soren
- * Author: Sukjoon Oh, sjoon@kaist.ac.kr
+ * @author Sukjoon Oh, sjoon@kaist.ac.kr
  * 
  * Project SOREN
  */
@@ -17,6 +17,7 @@
 
 namespace soren {
 
+    /// @brief 
     class Logger {
         std::shared_ptr<spdlog::sinks::stdout_color_sink_mt>    console_lgr;    // Prints out to the console.
         std::shared_ptr<spdlog::sinks::basic_file_sink_mt>      file_lgr;       // Prints out to the file.

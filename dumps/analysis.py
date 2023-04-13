@@ -11,8 +11,8 @@ import csv
 import numpy
 
 cur_files = [f for f in listdir(".") if isfile(join(".", f))]
-cur_files.remove(__file__) # Extract this script file.
-cur_files.remove('summary.csv') # Extract this script file.
+cur_files.remove(__file__)          # Extract this script file.
+cur_files.remove('summary.csv')     # Extract existing CSV file.
 
 
 summary = []
