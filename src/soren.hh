@@ -18,17 +18,21 @@
 //
 // This defines the player's role: replicator and replayer. 
 //  Check the document for more info.
-// #include "player.hh"
 #include "replayer.hh"
 #include "replicator.hh"
 #include "connector.hh"
 
+//
+// This header provides two functions to initiate and clean up Soren.
+// initSoren() has basic setup process that utilizes three basic class instances: 
+//  Replayer, Replicator and Connector.
+// Refer to each source file for more info.
 namespace soren {
 
-    void initSoren(uint32_t = 10, uint32_t = 1);
-    void cleanSoren();
+    void initSoren(uint32_t = 10, uint32_t = 1);    // Initialize Soren.
+    void cleanSoren();                              // Clean up all the resources Soren consumed.
 
-    Connector* getConnector();
-    Replayer* getReplayer();
-    Replicator* getReplicator();
+    Connector*  getConnector();                     // Access global Connector
+    Replayer*   getReplayer();                      // Access global Replayer
+    Replicator* getReplicator();                    // Access global Replicator
 }

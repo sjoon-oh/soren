@@ -5,20 +5,14 @@
  * Project SOREN
  */
 
+// This source comes from the repository Mu (https://github.com/LPD-EPFL/mu/)
+// The function provides waays how to measure delays by setting before-after 
+// timestamp.
+
 #include <inttypes.h>
 #include <time.h>
 
 #include <atomic>
-
-/*
-USAGE:
-    TIMESTAMP_INIT
-    TIMESTAMP_T t1, t2;
-
-    GET_TIMESTAMP(t1);
-    GET_TIMESTAMP(t2);
-    printf("Elapsed time in nanoseconds: %lu\n", ELAPSED_NSEC(t1, t2));
-*/
 
 #define TIMESTAMP_INIT      do {} while(0)
 #define TIMESTAMP_T         struct timespec
@@ -27,9 +21,9 @@ USAGE:
 
 namespace soren {
 
-    void initTimestamps(uint32_t);
-    void dumpElapsedTimes();
+    void initTimestamps(uint32_t);      // Initialize timestamp arrays
+    void dumpElapsedTimes();            // Dump the time difference (after-before TS)
 
-    int32_t __MARK_TS_BEFORE__();
-    void __MARK_TS_AFTER__(int32_t);
+    int32_t __MARK_TS_BEFORE__();       
+    void __MARK_TS_AFTER__(int32_t);    
 }

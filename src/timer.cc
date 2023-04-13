@@ -12,10 +12,14 @@
 
 #include "timer.hh"
 
+// This source comes from the repository Mu (https://github.com/LPD-EPFL/mu/)
+// The function provides waays how to measure delays by setting before-after 
+// timestamp.
+
 namespace soren {
 
-    uint32_t    glob_ntimestamps;
-    std::atomic<int32_t>    glob_tsidx;
+    uint32_t    glob_ntimestamps;       // This decides how many indices there should be.
+    std::atomic<int32_t>    glob_tsidx; // This blocks arbitrary writes of the same index by multiple threads.
 
 
     TIMESTAMP_T* GLOB_TS_BEFORE     = nullptr;
@@ -23,7 +27,8 @@ namespace soren {
 
     uint64_t* GLOB_TS_ELAPSED       = nullptr;
 
-
+    //
+    // Initializes timestamp arrays
     void initTimestamps(uint32_t arg_nts) {
 
         GLOB_TS_BEFORE = new TIMESTAMP_T[arg_nts];
@@ -37,6 +42,10 @@ namespace soren {
         glob_tsidx.store(0);
     }
 
+    // 
+    // Exports saved time differences. The filename is fixed to 'soren-dump.txt'
+    // run-test.sh file renames this file by inserting the datetime of the system.
+    // Refer to the run-test.sh.
     void dumpElapsedTimes() {
 
         GLOB_TS_ELAPSED = new uint64_t[glob_ntimestamps];
@@ -55,7 +64,7 @@ namespace soren {
 
         delete[] GLOB_TS_ELAPSED;
     }
-
+    
     int32_t __MARK_TS_BEFORE__() {
 
         int32_t idx = glob_tsidx.fetch_add(1);
