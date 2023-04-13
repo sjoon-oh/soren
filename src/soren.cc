@@ -42,7 +42,8 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
         for (int sp = 0; sp < arg_subpar; sp++) {
             if (nid != glob_node_id) 
                 INST_REPLAYER->doAddLocalMr(
-                    GET_MR_GLOBAL(nid, sp), soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(nid, sp))
+                    GET_MR_GLOBAL(nid, sp), 
+                    soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(nid, sp))
                 );
         }
     }

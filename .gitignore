@@ -40,10 +40,11 @@ hartebeest/build/*
 
 config/eth-config.json
 config/local-config.json
-post-all-conf.json
+logs/post-all-conf.json
 
 *.log
 *.txt
 
+logs/soren*log
 
 # CMakes

@@ -7,6 +7,7 @@
 # 
 
 rm *log
+rm logs/*
 
 # ./build/soren-heartbeat.test
 # ./build/soren-partitioner.test
@@ -15,3 +16,6 @@ rm *log
 ./make.sh
 wait
 ./build/soren-$1.test
+
+mv *.log ./logs
+mv *.json ./logs

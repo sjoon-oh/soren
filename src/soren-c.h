@@ -24,7 +24,10 @@ void    cwCleanConnection(void*);
 
 int     cwGetNumPlayers(void*);
 
-void*   cwInitReplicator(uint32_t, void*);
+void    cwInitSoren(uint32_t, uint32_t);
+void    cwPropose(uint8_t*, size_t, uint16_t);
+
+void    cwCleanSoren();
 
 #ifdef __cplusplus
 }

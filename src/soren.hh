@@ -18,7 +18,9 @@
 //
 // This defines the player's role: replicator and replayer. 
 //  Check the document for more info.
-#include "player.hh"
+// #include "player.hh"
+#include "replayer.hh"
+#include "replicator.hh"
 #include "connector.hh"
 
 namespace soren {

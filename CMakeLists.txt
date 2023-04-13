@@ -37,6 +37,7 @@ file(GLOB LIBSOREN_SRCFILES
     ${CMAKE_SOURCE_DIR}/src/*.hh)
 
 add_library(${LIBSOREN} SHARED ${LIBSOREN_SRCFILES})
+# add_library(${LIBSOREN}-static STATIC ${LIBSOREN_SRCFILES})
 set_target_properties(
     ${LIBSOREN} 
     PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build/out

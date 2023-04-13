@@ -22,11 +22,8 @@ int main() {
 
     for (int i = 0; i < 10; i++) {
         for (int off = 0; off < test_payload.size(); off += 31) {
-
-            // std::memset(target, 0, 32);
-            // std::memcpy(target, test_payload.c_str() + off, 31);
             
-            soren::getReplicator()->doPropose(reinterpret_cast<uint8_t*>(target), 32, (uint16_t)(*target));
+            soren::getReplicator()->doPropose(reinterpret_cast<uint8_t*>(target + off), 32, (uint16_t)(*(target + off)));
         }
     }
     
