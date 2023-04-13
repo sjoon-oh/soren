@@ -19,3 +19,6 @@ wait
 
 mv *.log ./logs
 mv *.json ./logs
+
+dump_file="soren-dump-$(date '+%y.%m.%d-%H:%M').txt"
+mv soren-dump.txt dumps/${dump_file}

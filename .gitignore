@@ -45,6 +45,8 @@ logs/post-all-conf.json
 *.log
 *.txt
 
+dumps/*.txt
+
 logs/soren*log
 
 # CMakes

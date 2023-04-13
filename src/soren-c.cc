@@ -47,8 +47,6 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     glob_ranger = arg_ranger;
     glob_nplayers = cwGetNumPlayers(glob_connector);
 
-    printf("Global Players: %d\n", glob_nplayers);
-
     glob_replayer = reinterpret_cast<soren::Replayer*>(
         new soren::Replayer(glob_node_id, glob_nplayers, glob_ranger, arg_subpar));
 
@@ -120,3 +118,10 @@ void cwCleanSoren() {
     delete reinterpret_cast<soren::Replayer*>(glob_replayer);
     delete reinterpret_cast<soren::Connector*>(glob_connector);
 }
+
+void cwInitTs(int32_t arg_nts) { soren::initTimestamps(arg_nts); }
+void cwDumpTs() { soren::dumpElapsedTimes(); }
+
+int32_t cwMarkTsBefore() { return soren::__MARK_TS_BEFORE__(); }
+void cwMarkTsAfter(int32_t arg_idx) { soren::__MARK_TS_AFTER__(arg_idx); }
+

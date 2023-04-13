@@ -8,6 +8,8 @@
 #include <inttypes.h>
 #include <time.h>
 
+#include <atomic>
+
 /*
 USAGE:
     TIMESTAMP_INIT
@@ -22,3 +24,12 @@ USAGE:
 #define TIMESTAMP_T         struct timespec
 #define GET_TIMESTAMP(t)    clock_gettime(CLOCK_MONOTONIC, &t)
 #define ELAPSED_NSEC(t1, t2) (t2.tv_nsec + t2.tv_sec * 1000000000UL - t1.tv_nsec - t1.tv_sec * 1000000000UL)
+
+namespace soren {
+
+    void initTimestamps(uint32_t);
+    void dumpElapsedTimes();
+
+    int32_t __MARK_TS_BEFORE__();
+    void __MARK_TS_AFTER__(int32_t);
+}

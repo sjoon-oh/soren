@@ -22,13 +22,21 @@ int main() {
     printf("SOREN C-WRAPPER DEMO\n");
     cwInitSoren(10, 2);
 
+    int32_t ts_idx;
+    cwInitTs(1000);
+
     for (int i = 0; i < 10; i++) {
         for (int off = 0; off < strlen(test_payload); off += 17) {
+            ts_idx = cwMarkTsBefore();
             cwPropose((uint8_t*)(target + off), 17, (uint16_t)(*(target + off)));
+            cwMarkTsAfter(ts_idx);
         }
     }
 
     sleep(20);
+
+    printf("Exporting...\n");
+    cwDumpTs();    
 
     cwCleanSoren();
     printf("SOREN C-WRAPPER END\n");

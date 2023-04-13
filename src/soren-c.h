@@ -29,6 +29,12 @@ void    cwPropose(uint8_t*, size_t, uint16_t);
 
 void    cwCleanSoren();
 
+void    cwInitTs(int32_t);
+void    cwDumpTs();
+
+int32_t cwMarkTsBefore();
+void    cwMarkTsAfter(int32_t);
+
 #ifdef __cplusplus
 }
 #endif
