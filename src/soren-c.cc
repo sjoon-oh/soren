@@ -24,12 +24,19 @@ void*   glob_connector;     // Single global Connector instance.
 void*   glob_replayer;      // Single global Replayer instance.
 void*   glob_replicator;    // Single global Replicator instance.
 
-//
-// Allocates Connector instance at glob_connector.
+
+
+/// @brief Allocates Connector instance at glob_connector.
+/// @param arg_subpar 
+/// @return 
 void* cwInitConnection(uint32_t arg_subpar) {
     return reinterpret_cast<soren::Connector*>(new soren::Connector(arg_subpar));
 }
 
+
+
+/// @brief Clean Connector resource.
+/// @param arg_conn 
 void cwCleanConnection(void* arg_conn) {
     auto conn = reinterpret_cast<soren::Connector*>(arg_conn);
     delete conn;
@@ -40,6 +47,11 @@ int cwGetNumPlayers(void* arg_conn) {
     return conn->getNumPlayers();
 }
 
+
+
+/// @brief Initialize Soren. This wraps components of each instance of Soren.
+/// @param arg_ranger 
+/// @param arg_subpar 
 void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
 
     glob_connector = cwInitConnection(arg_subpar);
@@ -153,8 +165,9 @@ void cwPropose(uint8_t* arg_addr, size_t arg_size, uint16_t arg_keypref) {
     );
 }
 
-//
-// Do allocated resource clean ups.
+
+
+/// @brief Do allocated resource clean ups.
 void cwCleanSoren() {
 
     // Kill all threads. 

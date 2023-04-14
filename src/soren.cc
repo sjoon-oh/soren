@@ -33,8 +33,11 @@ namespace soren {
     uint32_t                glob_nplayers;          // What is the number of players in a network?
 }
 
-// 
-// Initializes Soren.
+
+
+/// @brief Initializes Soren.
+/// @param arg_ranger 
+/// @param arg_subpar 
 void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
 
     INST_CONNECTOR.reset(new Connector(arg_subpar));    
@@ -139,8 +142,9 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
         INST_REPLICATOR->doLaunchPlayer(glob_nplayers, sp);
 }
 
-//
-// Do allocated resource clean ups.
+
+
+/// @brief Do allocated resource clean ups.
 void soren::cleanSoren() {
 
     // Kill all threads. 

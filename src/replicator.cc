@@ -22,22 +22,31 @@ namespace soren {
     static Logger REPLICATOR_LOGGER("SOREN/REPLICATOR", "soren_replicator.log");
 }
 
-void soren::Replicator::__sendWorkerSignal(uint32_t arg_hdl, int32_t arg_sig) {
 
+
+/// @brief Sends a worker a signal.
+/// @param arg_hdl 
+/// @param arg_sig 
+void soren::Replicator::__sendWorkerSignal(uint32_t arg_hdl, int32_t arg_sig) {
     workers.at(arg_hdl).wrk_sig.store(arg_sig);
 
-    if (arg_sig == SIG_SELFRET) {
-        // Clean up
+    if (arg_sig == SIG_SELFRET)
         workers.at(arg_hdl).wrkt_nhdl = 0;
-    }
 }
 
+
+
+/// @brief Waits until a worker sets the signal.
+/// @param arg_hdl 
+/// @param arg_sig 
 void soren::Replicator::__waitWorkerSignal(uint32_t arg_hdl, int32_t arg_sig) {
     
     auto& signal = workers.at(arg_hdl).wrk_sig;
     while (signal.load() != arg_sig)
         ;
 }
+
+
 
 int soren::Replicator::__findEmptyWorkerHandle() {
     int hdl;
@@ -48,6 +57,8 @@ int soren::Replicator::__findEmptyWorkerHandle() {
 
     if (hdl == MAX_NWORKER) return -1;
 }
+
+
 
 int soren::Replicator::__findNeighborAliveWorkerHandle(uint32_t arg_hdl) {
     
@@ -61,6 +72,13 @@ int soren::Replicator::__findNeighborAliveWorkerHandle(uint32_t arg_hdl) {
     return -1;
 }
 
+
+
+/// @brief Constructor of Replicator instance.
+/// @param arg_nid 
+/// @param arg_players 
+/// @param arg_ranger 
+/// @param arg_subpar 
 soren::Replicator::Replicator(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_ranger = 10, uint32_t arg_subpar = 1) : 
     node_id(arg_nid), nplayers(arg_players), ranger(arg_ranger), sub_par(arg_subpar) {
         if (arg_subpar > MAX_SUBPAR)
@@ -69,11 +87,24 @@ soren::Replicator::Replicator(uint32_t arg_nid, uint16_t arg_players, uint32_t a
 
 soren::Replicator::~Replicator() { for (auto& elem: mr_remote_hdls) delete elem; }
 
+
+
+/// @brief doAddLocalMr inserts the allocated RDMA MR resource (on this machine).
+/// @param arg_id 
+/// @param arg_mr 
+/// @return 
 bool soren::Replicator::doAddLocalMr(uint32_t arg_id, struct ibv_mr* arg_mr) {
 
     if (mr_hdls.find(arg_id) != mr_hdls.end()) return false;
     mr_hdls.insert(
         std::pair<uint32_t, struct ibv_mr*>(arg_id, arg_mr));
+
+    //
+    // Since a worker thread should have its region to work with, 
+    //  an MR generated from the Connector instance should be registered here.
+    //  All Memory Regions should be registered for each worker thread spawned.
+    // Note that the resources are managed by the connector. 
+    //  Replicator just borrows it by having its pointer, but should never free.
     
     SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "MR({})[{}] => MR HDL map", 
         arg_id, reinterpret_cast<void*>(arg_mr), arg_mr->addr);
@@ -81,23 +112,50 @@ bool soren::Replicator::doAddLocalMr(uint32_t arg_id, struct ibv_mr* arg_mr) {
     return true;
 }
 
+
+
+/// @brief doAddLocalQp inerts the allocated RDMA QP resource (on this machine).
+/// @param arg_id 
+/// @param arg_qp 
+/// @return 
 bool soren::Replicator::doAddLocalQp(uint32_t arg_id, struct ibv_qp* arg_qp) {
 
     if (qp_hdls.find(arg_id) != qp_hdls.end()) return false;
     qp_hdls.insert(
         std::pair<uint32_t, struct ibv_qp*>(arg_id, arg_qp));
+
+    //  A worker thread RDMA writes data to remotes. Thus, an QP generated from the 
+    //  Connector instance should be registered here. Queue pair per thread should be 
+    //  registered.
+    // Note that the resources are managed by the connector. 
+    //  Replicator just borrows it by having its pointer, but should never free.
     
     SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "QP({})[{}] => QP HDL map", arg_id, reinterpret_cast<void*>(arg_qp));
     return true;
 }
 
+
+
+/// @brief doAddLocalQp inerts the allocated RDMA QP resource of other machine.
+/// @param arg_id 
+/// @param arg_mr 
+/// @return 
 bool soren::Replicator::doAddRemoteMr(uint32_t arg_id, struct ibv_mr* arg_mr) {
     
     doAddLocalMr(arg_id, arg_mr);
 
+    // A worker thread should have knowledge about the remote's Memory Region.
+    // Without the information such as RKEY, starting address and its length, 
+    // any RDMA reads or writes will never happen.
+    // These information is exchanged thanks to Hartebeest. The argument arg_mr
+    // holds only minimal elements that are necessary for communication. Everything
+    // else is set to zero. 
+    // Refer to searchQp for more info.
+
     mr_remote_hdls.push_back(arg_mr);
     return true;
 }
+
 
 
 void soren::Replicator::doResetMrs() { mr_hdls.clear(); }
@@ -115,13 +173,22 @@ void soren::Replicator::doForceKillWorker(uint32_t arg_hdl) {
     workers.at(arg_hdl).wrk_sig.store(0);
 }
 
+
+
+
 bool soren::Replicator::isWorkerAlive(uint32_t arg_hdl) {
     return (workers.at(arg_hdl).wrkt_nhdl != 0);
 }
 
+
+
+/// @brief Launches a worker thread, which handles arg_cur_sp sub partition.
+/// @param arg_nplayers 
+/// @param arg_cur_sp 
+/// @return 
 int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
 
-    int handle = __findEmptyWorkerHandle();
+    int handle = __findEmptyWorkerHandle();         // Find the next index with unused WorkerThread array.
     WorkerThread& wrkr_inst = workers.at(handle);
 
     //
@@ -129,15 +196,15 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
     std::thread player_thread(
         [](
             std::atomic<int32_t>& arg_sig,                      // Signal
-            std::atomic<u_char>& arg_next_free_sidx,
-            std::atomic<u_char>& arg_finn_proc_sidx,
+            std::atomic<u_char>& arg_next_free_sidx,            // Points to the next index to process.
+            std::atomic<u_char>& arg_finn_proc_sidx,            // Points to finished index.
 
-            Slot* arg_slots,
+            Slot* arg_slots,                                    // Workspace for this worker thread.
             const int arg_hdl,                                  // Worker Handle
             
             // Local handles.
-            std::map<uint32_t, struct ibv_mr*>& arg_mr_hdls,    // MR handle, for reference once.
-            std::map<uint32_t, struct ibv_qp*>& arg_qp_hdls,    // QP handle, for reference once.
+            std::map<uint32_t, struct ibv_mr*>& arg_mr_hdls,    // MR handle, for referencing once.
+            std::map<uint32_t, struct ibv_qp*>& arg_qp_hdls,    // QP handle, for referencing once.
             
             const uint32_t arg_nid,                             // Node ID
             const uint32_t arg_npl,
@@ -153,22 +220,31 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
             // Local Memory Region (Buffer) tracker.
             uint32_t    n_prop = 0;
 
+            // Memory Region stores its actual log starting the offset 128 bytes.
+            // Areas from 0 to 127 bytes are reserved for general purpose RDMA communication
+            // buffer. This is necessary since nodes never use TCP anymore (after Hartebeest 
+            // exchange).
             int32_t     mr_offset = 128;
             int32_t     mr_linfree = BUF_SIZE - 128;
 
             //
             // Prepare resources for RDMA operations.
-            uint32_t wrkr_mr_id = GET_MR_GLOBAL(arg_nid, arg_hdl);
-            struct ibv_mr* wrkr_mr = arg_mr_hdls.find(wrkr_mr_id)->second;
-            struct ibv_qp** qps = new struct ibv_qp*[arg_npl]; 
-            struct ibv_mr** mrs = new struct ibv_mr*[arg_npl]; // Holds remote mrs.
+            uint32_t wrkr_mr_id     = GET_MR_GLOBAL(arg_nid, arg_hdl);
+            struct ibv_mr* wrkr_mr  = arg_mr_hdls.find(wrkr_mr_id)->second;
+            struct ibv_qp** qps     = new struct ibv_qp*[arg_npl]; 
+            struct ibv_mr** mrs     = new struct ibv_mr*[arg_npl]; // Holds remote mrs.
 
             SOREN_LOGGER_INFO(worker_logger, "Replicator({}) initiated.", arg_hdl);
 
+            //
+            // For each node ID, register the remote MR information and corresponding local
+            //  Queue Pairs.
             for (int nid = 0; nid < arg_npl; nid++) {
                 if (nid == arg_nid) {
-                    qps[nid] = nullptr;
-                    mrs[nid] = nullptr;
+
+                    // For this node, it never does comminication (self?).
+                    qps[nid] = nullptr; 
+                    mrs[nid] = nullptr; 
 
                 } else {
                     qps[nid] = arg_qp_hdls.find(GET_QP_REPLICATOR(arg_nid, nid, arg_current_sp))->second;
@@ -178,6 +254,8 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
 
             //
             // Since it is initiated, peek at others' metadata area to see if something is on them.
+            //  This observes other Replayers threads' offset and proposal number.
+            //  This may be necessary since a replicator may have respawned.
             struct LogStat* log_stat = reinterpret_cast<struct LogStat*>(wrkr_mr->addr);
             std::memset(log_stat, 0, sizeof(struct LogStat));
 
@@ -196,29 +274,31 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                 if (nid == arg_nid) continue;
 
                 while (1) {
-                    if (rdmaPost(
-                            IBV_WR_RDMA_READ, 
-                            qps[nid],               // Local Replicator's Queue Pair
-                            reinterpret_cast<uintptr_t>(wrkr_mr->addr),
-                                                    // Local buffer address
-                            sizeof(struct LogStat), // Buffer size
-                            wrkr_mr->lkey,          // Local MR LKey
-                            reinterpret_cast<uintptr_t>(mrs[nid]->addr),
-                                                    // Remote's address
-                            mrs[nid]->rkey          // Remotes RKey
+                    if (rdmaPost(IBV_WR_RDMA_READ,                      // Do RDMA read
+                            qps[nid],                                   // Local Replicator's Queue Pair
+                            reinterpret_cast<uintptr_t>(wrkr_mr->addr), // Local buffer address
+                            sizeof(struct LogStat),                     // Buffer size
+                            wrkr_mr->lkey,                              // Local MR LKey
+                            reinterpret_cast<uintptr_t>(mrs[nid]->addr),// Remote's address
+                            mrs[nid]->rkey                              // Remotes RKey
                             )
                         != 0) {
                         
                         SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Read for LogStat failed.", arg_hdl);
                     }
                     else {
-                        waitSingleSCqe(qps[nid]);
+                        waitSingleSCqe(qps[nid]);   // RDMA Read may be unsuccessful.
+                                                    // Wait for the Send Completion Queue to be notified by this caller.
 
                         if (n_prop < log_stat->n_prop) {
                             n_prop = log_stat->n_prop;
                             mr_offset = log_stat->offset;
                         }
 
+                        //
+                        // This is a message from the replayer threads. If the message do not match,
+                        //  this thread may have read wrong values. Thus, try again the RDMA read to
+                        //  get the offset from the replayers.
                         if (log_stat->dummy1 == REPLAYER_READY) {
                             SOREN_LOGGER_INFO(worker_logger, "Reading from ({}):\n- at remote [{}]\n- offset: {}, prop: {}\n- msg: {}", 
                                 nid, mrs[nid]->addr, (uint32_t)log_stat->offset, (uint32_t)log_stat->n_prop, (uint32_t)log_stat->dummy1);
