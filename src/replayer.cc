@@ -19,6 +19,11 @@ namespace soren {
     static Logger REPLAYER_LOGGER("SOREN/REPLAYER", "soren_replayer.log");
 }
 
+
+
+/// @brief Sends a worker signal.
+/// @param arg_hdl 
+/// @param arg_sig 
 void soren::Replayer::__sendWorkerSignal(uint32_t arg_hdl, int32_t arg_sig) {
 
     workers.at(arg_hdl).wrk_sig.store(arg_sig);
@@ -29,12 +34,19 @@ void soren::Replayer::__sendWorkerSignal(uint32_t arg_hdl, int32_t arg_sig) {
     }
 }
 
+
+
+/// @brief Waits until a worker sets the signal.
+/// @param arg_hdl 
+/// @param arg_sig 
 void soren::Replayer::__waitWorkerSignal(uint32_t arg_hdl, int32_t arg_sig) {
     
     auto& signal = workers.at(arg_hdl).wrk_sig;
     while (signal.load() != arg_sig)
         ;
 }
+
+
 
 int soren::Replayer::__findEmptyWorkerHandle() {
     int hdl;
@@ -45,6 +57,8 @@ int soren::Replayer::__findEmptyWorkerHandle() {
 
     if (hdl == MAX_NWORKER) return -1;
 }
+
+
 
 int soren::Replayer::__findNeighborAliveWorkerHandle(uint32_t arg_hdl) {
     
@@ -58,6 +72,13 @@ int soren::Replayer::__findNeighborAliveWorkerHandle(uint32_t arg_hdl) {
     return -1;
 }
 
+
+
+/// @brief Constructor of Replayer instance.
+/// @param arg_nid 
+/// @param arg_players 
+/// @param arg_ranger 
+/// @param arg_subpar 
 soren::Replayer::Replayer(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_ranger = 10, uint32_t arg_subpar = 1) : 
     node_id(arg_nid), nplayers(arg_players), ranger(arg_ranger), sub_par(arg_subpar) {
     if (arg_subpar > MAX_SUBPAR)
@@ -66,17 +87,37 @@ soren::Replayer::Replayer(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_r
 
 soren::Replayer::~Replayer() { }
 
+
+
+/// @brief doAddLocalMr inserts the allocated RDMA MR resource (on this machine).
+/// @param arg_id 
+/// @param arg_mr 
+/// @return 
 bool soren::Replayer::doAddLocalMr(uint32_t arg_id, struct ibv_mr* arg_mr) {
 
     if (mr_hdls.find(arg_id) != mr_hdls.end()) return false;
     mr_hdls.insert(
         std::pair<uint32_t, struct ibv_mr*>(arg_id, arg_mr));
+
+    //
+    // Since a worker thread should have its region to work with, 
+    //  an MR generated from the Connector instance should be registered here.
+    //  All Memory Regions should be registered for each worker thread spawned.
+    // Note that the resources are managed by the connector. 
+    //  Replicator just borrows it by having its pointer, but should never free.
+    //
+    // Unlike the Replicator class, Replayer only have doAddLocalMr, since this is 
+    // a passive player. Replayer never do RDMA reads or writes. This instnace only 
+    // plays with it memory, thus do not have doAddLocalQp.
     
     SOREN_LOGGER_INFO(REPLAYER_LOGGER, "MR({})[{}] => Replayer map", 
         arg_id, reinterpret_cast<void*>(arg_mr), arg_mr->addr);
 
     return true;
 }
+
+
+
 
 void soren::Replayer::doResetMrs() { mr_hdls.clear(); }
 
@@ -92,9 +133,15 @@ void soren::Replayer::doForceKillWorker(uint32_t arg_hdl) {
     workers.at(arg_hdl).wrk_sig.store(0);
 }
 
+
+
+/// @brief Launches a worker thread, which handles arg_cur_sp sub partition.
+/// @param arg_from_nid 
+/// @param arg_cur_sp 
+/// @return 
 int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
 
-    int handle = __findEmptyWorkerHandle();
+    int handle = __findEmptyWorkerHandle();         // Find the next index with unused WorkerThread array.
     WorkerThread& wrkr_inst = workers.at(handle);
 
     //
@@ -103,15 +150,15 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
         [](
             std::atomic<int32_t>& arg_sig,                      // Signal
             
-            Slot* arg_slots,
+            Slot* arg_slots,                                    // Workspace for this worker thread.
             const int arg_hdl,                                  // Worker Handle
             
             // Local handles.
-            std::map<uint32_t, struct ibv_mr*>& arg_mr_hdls,  // MR handle, for reference once.
+            std::map<uint32_t, struct ibv_mr*>& arg_mr_hdls,    // MR handle, for reference once.
             
             const uint32_t arg_nid,                             // Node ID
-            const uint32_t arg_from_nid,
-            const int arg_current_sp
+            const uint32_t arg_from_nid,                        // Node ID that sends data from.
+            const int arg_current_sp                            // Sub partition, (in case config changes.)
         ) {
             
             std::string log_fname = "soren_replayer_wt_" + std::to_string(arg_hdl) + ".log";
@@ -122,6 +169,10 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
             // Local Memory Region (Buffer) tracker.
             uint32_t    n_prop = 0;
 
+            // Memory Region stores its actual log starting the offset 128 bytes.
+            // Areas from 0 to 127 bytes are reserved for general purpose RDMA communication
+            // buffer. This is necessary since nodes never use TCP anymore (after Hartebeest 
+            // exchange).
             int32_t     mr_offset = 128;
             int32_t     mr_linfree = BUF_SIZE - 128;
 
@@ -132,6 +183,8 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
 
             //
             // Since it is initiated, peek at others' metadata area to see if something is on them.
+            //  This lets the other Replicator to read threads' offset and proposal number.
+            //  This may be necessary since a replicator may have respawned.
             struct LogStat* log_stat = reinterpret_cast<struct LogStat*>(wrkr_mr->addr);
             std::memset(log_stat, 0, sizeof(struct LogStat));
 
@@ -152,16 +205,24 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
 
             // Set ready.
             log_stat->dummy1 = REPLAYER_READY;
+            
+            // This is a message for the replayer threads of other nodes. 
+            // If the message do not match, the replicator threads may have read 
+            // wrong values. In that case, the threads will try RDMA reads again 
+            // to get the offset from the replayers.
 
-            arg_sig.store(SIG_READY);
+            arg_sig.store(SIG_READY);   // Let the caller that I am ready.
+                                        // If this is not set, the spawner may wait infinitely.
 
             //
             // Test
             // __testRdmaWrite(nullptr, wrkr_mr, nullptr, arg_nid, 1);
 
+            //
+            // -- The main loop starts from here. --
             while (1) {
 
-                signal = arg_sig.load();
+                signal = arg_sig.load();    // Load signal.
 
                 switch (signal) {
                     case SIG_PAUSE:
@@ -180,6 +241,17 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
                         disp_msg = false;
                         
                         {   
+                            // Since the remote is not alerted that some data are written to its memory,
+                            // a replayer thread should poll constantly whether any new data has arrived.
+                            // The replicator sets the very first continuous area as Slots, which is fixed thus
+                            // the size is predictable.
+                            //
+                            // Replayer thread keeps observing the header, and according to the size of the data,
+                            // it compares the canary value contained in the header Slot with the end SlotCanary
+                            // value. If it is valid, then it means that there is something arrived.
+                            // To prevent the false alarm, one of the canary values is deliberately corrupted (shifted)
+                            // by the replayer.
+
                             uintptr_t local_mr_addr = reinterpret_cast<uintptr_t>(wrkr_mr->addr);
                             uintptr_t msg_base = local_mr_addr + mr_offset;
 
@@ -222,6 +294,7 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
                             mr_offset += (sizeof(struct Slot) + header->size + sizeof(struct SlotCanary));
                             mr_linfree = BUF_SIZE - mr_offset;
 
+                            // 4. Set the next aligned offset.
                             prepareNextAlignedOffset(
                                 mr_offset, mr_linfree, header->size);
                         }
@@ -242,9 +315,11 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
             node_id, arg_from_nid, arg_cur_sp
     );
 
+    // Register to the fixed array, workers. 
     wrkr_inst.wrkt        = std::move(player_thread);
     wrkr_inst.wrkt_nhdl   = wrkr_inst.wrkt.native_handle();
 
+    // Bye son!
     wrkr_inst.wrkt.detach();
 
     __waitWorkerSignal(handle, SIG_READY);
@@ -252,6 +327,8 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
 
     return handle;
 }
+
+
 
 bool soren::Replayer::isWorkerAlive(uint32_t arg_hdl) {
     return (workers.at(arg_hdl).wrkt_nhdl != 0);

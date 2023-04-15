@@ -20,6 +20,15 @@ namespace soren {
     static Logger RMDA_TEST_LOGGER("SOREN/RMDA-TEST", "soren_rdma_test.log");
 }
 
+
+
+/// @brief Tests RDMA WRITE.
+/// @param arg_loc_qp 
+/// @param arg_loc_mr 
+/// @param arg_remote_mr 
+/// @param arg_nid 
+/// @param arg_testmode 
+/// @return 
 int soren::__testRdmaWrite(
     struct ibv_qp* arg_loc_qp,
     struct ibv_mr* arg_loc_mr,
@@ -65,6 +74,8 @@ int soren::__testRdmaWrite(
         SOREN_LOGGER_INFO(RMDA_TEST_LOGGER, " ----- TEST END ({}) ----- ", ret);
         return ret;
 }
+
+
 
 int soren::__testRdmaRead(
     struct ibv_qp* arg_loc_qp,
