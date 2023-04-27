@@ -7,6 +7,8 @@
 #include <memory>
 #include <atomic>
 
+#include <unistd.h>
+
 #include "soren.hh"
 #include "hartebeest-wrapper.hh"
 

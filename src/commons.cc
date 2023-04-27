@@ -6,4 +6,4 @@
 
 #include "commons.hh"
 
-const bool soren::isSlotValid(Slot& arg_tar, uint32_t arg_can) { return arg_tar.canary == arg_can; }
+const bool soren::isSlotValid(HeaderSlot& arg_tar, uint32_t arg_can) { return arg_tar.canary == arg_can; }

@@ -88,16 +88,16 @@ namespace soren {
         //  thread, and never be modified by a worker thread.
         //
 
-        Slot*                               wrkspace;       // Per-thread workspace.
+        LocalSlot*                          wrkspace;       // Per-thread workspace.
         std::atomic<u_char>                 next_free_sidx; // Points to the next index to process.
         std::atomic<u_char>                 finn_proc_sidx; // Points to finished index.
         std::atomic<int32_t>                outstanding;    // Counts the pending requests.
                                                             
-        WorkerThread() : wrkt_nhdl(0), wrk_sig(0), wrkspace(new Slot[MAX_NSLOTS]), 
+        WorkerThread() : wrkt_nhdl(0), wrk_sig(0), wrkspace(new LocalSlot[MAX_NSLOTS]), 
             next_free_sidx(1), outstanding(0), finn_proc_sidx(128) { }
 
         WorkerThread(std::thread& arg_t, std::thread::native_handle_type arg_hdl) :
-            wrkt(std::move(arg_t)), wrkt_nhdl(arg_hdl), wrk_sig(0), wrkspace(new Slot[MAX_NSLOTS]), 
+            wrkt(std::move(arg_t)), wrkt_nhdl(arg_hdl), wrk_sig(0), wrkspace(new LocalSlot[MAX_NSLOTS]), 
             next_free_sidx(1), outstanding(0), finn_proc_sidx(128)
                 { }
 

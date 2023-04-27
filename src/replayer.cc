@@ -150,10 +150,10 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
         [](
             std::atomic<int32_t>& arg_sig,                      // Signal
             
-            Slot* arg_slots,                                    // Workspace for this worker thread.
+            LocalSlot* arg_slots,                               // Workspace for this worker thread.
             const int arg_hdl,                                  // Worker Handle
             
-            // Local handles.
+            // LocalSlot handles.
             std::map<uint32_t, struct ibv_mr*>& arg_mr_hdls,    // MR handle, for reference once.
             
             const uint32_t arg_nid,                             // Node ID
@@ -255,14 +255,14 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
                             uintptr_t local_mr_addr = reinterpret_cast<uintptr_t>(wrkr_mr->addr);
                             uintptr_t msg_base = local_mr_addr + mr_offset;
 
-                            struct Slot* header
-                                = reinterpret_cast<struct Slot*>(msg_base);
+                            struct HeaderSlot* header
+                                = reinterpret_cast<struct HeaderSlot*>(msg_base);
                             
                             // 1. Read the header, observe the canary, is the prop valid?
                             int32_t header_canary = header->canary;
                             int32_t slot_canary = 
                                 reinterpret_cast<struct SlotCanary*>(
-                                    msg_base + sizeof(struct Slot) + header->size)->canary;
+                                    msg_base + sizeof(struct HeaderSlot) + header->size)->canary;
 
                             // SOREN_LOGGER_INFO(worker_logger, 
                             //     "Expected Prop({}): \n- header prop: ({}), size: {}\n- canary header/end: ({})/({})", 
@@ -291,7 +291,7 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
                             header->canary << 4;
                             n_prop = header->n_prop;
 
-                            mr_offset += (sizeof(struct Slot) + header->size + sizeof(struct SlotCanary));
+                            mr_offset += (sizeof(struct HeaderSlot) + header->size + sizeof(struct SlotCanary));
                             mr_linfree = BUF_SIZE - mr_offset;
 
                             // 4. Set the next aligned offset.

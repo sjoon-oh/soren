@@ -5,6 +5,8 @@
  */
 
 #include <string>
+#include <unistd.h>
+
 #include "../soren.hh"
 
 int main() {

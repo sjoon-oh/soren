@@ -8,6 +8,8 @@
 #include "timer.hh"
 #include "logger.hh"    // Soren Logger
 
+#include "hashtable.hh"
+
 //
 // This contains local Heartbeat runner.
 #include "heartbeat.hh"

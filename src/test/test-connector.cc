@@ -4,6 +4,7 @@
  * Project SOREN
  */
 
+#include <unistd.h>
 #include <string>
 
 #include "../hartebeest-wrapper.hh"

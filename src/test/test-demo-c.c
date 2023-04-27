@@ -8,6 +8,8 @@
 // C-based integrator test.
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+
 #include "../soren-c.h"
 
 int main() {

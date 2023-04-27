@@ -5,6 +5,7 @@
  */
 
 #include <stdint.h>
+#include <unistd.h>
 
 #include "soren-c.h"
 #include "soren.hh"

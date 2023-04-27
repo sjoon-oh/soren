@@ -128,3 +128,19 @@ add_executable(
     ${SOREN_TEST_DEMO_SP_SRCFILES}
 )
 target_link_libraries(${SOREN_TEST_DEMO_SP} PUBLIC ${LIBSOREN})
+
+#
+# --------------------------------------
+# Target: SOREN_HASHTABLE_TEST
+set(SOREN_TEST_HASHTABLE
+    ${SOREN_PREFIX}-hashtable.${SOREN_SUFFIX_TEST})
+    file(GLOB SOREN_TEST_HASHTABLE_SRCFILES 
+    CONFIGURE_DEPENDS 
+    ${CMAKE_SOURCE_DIR}/src/test/test-hashtable.cc
+)
+
+add_executable(
+    ${SOREN_TEST_HASHTABLE}  
+    ${SOREN_TEST_HASHTABLE_SRCFILES}
+)
+target_link_libraries(${SOREN_TEST_HASHTABLE} PUBLIC ${LIBSOREN})
