@@ -6,6 +6,7 @@
  */
 
 #include <cstdint>
+#include <ctime>
 
 namespace soren {
 
@@ -37,6 +38,7 @@ namespace soren {
     struct __attribute__((packed)) LocalSlot {
         struct LocalSlot*   next_slot;
         uint32_t            hashed_key;
+        struct timespec     timestamp;
         struct HeaderSlot   header;
     };
 
@@ -46,4 +48,6 @@ namespace soren {
 
     const bool isSlotValid(HeaderSlot&, uint32_t);
 
+    int localSlotTsComp(void*, void*);
+    int localSlotHashComp(void*, void*);
 }

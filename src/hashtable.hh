@@ -23,17 +23,17 @@
 #define YYY             0x2
 #define ALL             (XXX | YYY)
 
-#define IS_MARKED_REFERENCE(c, m)       ((((uint64_t) c) & (m)) != 0)
+#define IS_MARKED_REFERENCE(c, m)       ((((uint64_t) (c)) & (m)) != 0)
 #define IS_MARKED_AS_DELETED(c)         IS_MARKED_REFERENCE(c, XXX)
 #define IS_MARKED_AS_PROTECTED(c)       IS_MARKED_REFERENCE(c, YYY)
 
-#define GET_UNMARKED_REFERENCE(c)       (typeof(c))(((uint64_t) c) & ~ALL)
-#define GET_MARKED_REFERENCE(c, m)      (typeof(c))((((uint64_t) c) & ~ALL) | (m))
+#define GET_UNMARKED_REFERENCE(c)       (typeof(c))(((uint64_t) (c)) & ~ALL)
+#define GET_MARKED_REFERENCE(c, m)      (typeof(c))((((uint64_t) (c)) & ~ALL) | (m))
 #define GET_MARKED_AS_DELETED(c)        GET_MARKED_REFERENCE(c, XXX)
 #define GET_MARKED_AS_PROTECTED(c)      GET_MARKED_REFERENCE(c, YYY)
 
 #define IS_SAME_BASEREF(a, b)           (GET_UNMARKED_REFERENCE(a) == GET_UNMARKED_REFERENCE(b))
-#define GET_SAME_MARK(a, b)             (typeof(a))(((uint64_t) a) | (((uint64_t) b) & ALL))
+#define GET_SAME_MARK(a, b)             (typeof(a))(((uint64_t) (a)) | (((uint64_t) (b)) & ALL))
 
 
 typedef int32_t (*compfunc_t) (void *, void *);
@@ -86,6 +86,7 @@ namespace soren {
 
             // Interfaces.
             bool doInsert(struct LocalSlot*, struct LocalSlot*, struct LocalSlot*);
+            bool doSwitch(struct LocalSlot*, struct LocalSlot*, struct LocalSlot*);
             bool doSearch(uint32_t, struct LocalSlot*, struct LocalSlot**, struct LocalSlot**);
 
             struct List* debugGetBucket(uint32_t);

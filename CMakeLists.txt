@@ -131,16 +131,32 @@ target_link_libraries(${SOREN_TEST_DEMO_SP} PUBLIC ${LIBSOREN})
 
 #
 # --------------------------------------
-# Target: SOREN_HASHTABLE_TEST
-set(SOREN_TEST_HASHTABLE
-    ${SOREN_PREFIX}-hashtable.${SOREN_SUFFIX_TEST})
-    file(GLOB SOREN_TEST_HASHTABLE_SRCFILES 
+# Target: SOREN_HASHTABLE_TEST_ST (Single Threaded Test)
+set(SOREN_TEST_HASHTABLE_ST
+    ${SOREN_PREFIX}-hashtable-st.${SOREN_SUFFIX_TEST})
+    file(GLOB SOREN_TEST_HASHTABLE_ST_SRCFILES 
     CONFIGURE_DEPENDS 
-    ${CMAKE_SOURCE_DIR}/src/test/test-hashtable.cc
+    ${CMAKE_SOURCE_DIR}/src/test/test-hashtable-st.cc
 )
 
 add_executable(
-    ${SOREN_TEST_HASHTABLE}  
-    ${SOREN_TEST_HASHTABLE_SRCFILES}
+    ${SOREN_TEST_HASHTABLE_ST}  
+    ${SOREN_TEST_HASHTABLE_ST_SRCFILES}
 )
-target_link_libraries(${SOREN_TEST_HASHTABLE} PUBLIC ${LIBSOREN})
+target_link_libraries(${SOREN_TEST_HASHTABLE_ST} PUBLIC ${LIBSOREN})
+
+#
+# --------------------------------------
+# Target: SOREN_HASHTABLE_TEST_MT (Multi-threaded Test)
+set(SOREN_TEST_HASHTABLE_MT
+    ${SOREN_PREFIX}-hashtable-mt.${SOREN_SUFFIX_TEST})
+    file(GLOB SOREN_TEST_HASHTABLE_MT_SRCFILES 
+    CONFIGURE_DEPENDS 
+    ${CMAKE_SOURCE_DIR}/src/test/test-hashtable-mt.cc
+)
+
+add_executable(
+    ${SOREN_TEST_HASHTABLE_MT}  
+    ${SOREN_TEST_HASHTABLE_MT_SRCFILES}
+)
+target_link_libraries(${SOREN_TEST_HASHTABLE_MT} PUBLIC ${LIBSOREN})

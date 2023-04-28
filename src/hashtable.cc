@@ -41,10 +41,7 @@ bool soren::hash::LfHashTable::__elemInsert(
         arg_new->next_slot = arg_next; 
         orig_next = CASV(&(arg_prev->next_slot), arg_next, arg_new);
 
-        // printf("New: %p, Next: %p\n", arg_new, arg_next);
-
         if (orig_next == arg_next) return true;
-
         if (orig_next != GET_MARKED_AS_PROTECTED(arg_next))
             return false;
 
@@ -148,19 +145,6 @@ bool soren::hash::LfHashTable::__elemSearch(
     uint32_t arg_hashval, struct LocalSlot* arg_key, struct LocalSlot** arg_left, struct LocalSlot** arg_right) {
         
     struct List* list = __getBucket(arg_hashval);
-    
-    // bool is_sucess  = false;
-    // bool is_samekey = false;
-
-    // do {
-    //     if ((is_samekey = list_search(list, slotcmp, (struct LocalSlot *)new, &prev, &next)) 
-    //         == true)
-    //         is_success = __elemSwitch((struct LocalSlot *)new, prev, next);
-    
-    //     else
-    //         is_success = __elemSwitch((struct LocalSlot *)new, prev, next);
-        
-    // } while (!is_success);
 
     struct LocalSlot* prev       = &list->head;
     struct LocalSlot* prev_next  = prev->next_slot;
@@ -169,7 +153,6 @@ bool soren::hash::LfHashTable::__elemSearch(
 
     while (curr != &list->head && compare_func(curr, arg_key) <= 0) {
         
-        // 
         if (!IS_MARKED_AS_DELETED(curr_next)) {
             if (!IS_SAME_BASEREF(prev_next, curr)) {
                 CAS(&(prev->next_slot), prev_next, GET_SAME_MARK(curr, prev_next));
@@ -302,6 +285,12 @@ uint32_t soren::hash::LfHashTable::doHash(const void* arg_key, int arg_len) {
 
 bool soren::hash::LfHashTable::doInsert(struct LocalSlot* arg_new, struct LocalSlot* arg_prev, struct LocalSlot* arg_next) {
     return __elemInsert(arg_new, arg_prev, arg_next);
+}
+
+
+
+bool soren::hash::LfHashTable::doSwitch(struct LocalSlot* arg_new, struct LocalSlot* arg_prev, struct LocalSlot* arg_next) {
+    return __elemSwitch(arg_new, arg_prev, arg_next);
 }
 
 
