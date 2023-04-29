@@ -306,3 +306,15 @@ bool soren::hash::LfHashTable::doSearch(
 struct List* soren::hash::LfHashTable::debugGetBucket(uint32_t arg_idx) {
     return __getBucket(arg_idx);
 }
+
+
+
+void soren::hash::LfHashTable::doDelete(struct LocalSlot* arg_target) {
+    __elemDelete(arg_target);
+}
+
+
+
+void soren::hash::LfHashTable::doCleanups(struct List* arg_list) {
+    __elemCleanups(arg_list);
+}

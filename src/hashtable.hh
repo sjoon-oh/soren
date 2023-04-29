@@ -39,7 +39,7 @@
 typedef int32_t (*compfunc_t) (void *, void *);
 
 struct __attribute__((packed)) Cell {
-    struct LocalSlot* next; 
+    struct soren::LocalSlot* next; 
 };
 
 struct __attribute__((packed)) List {
@@ -88,6 +88,8 @@ namespace soren {
             bool doInsert(struct LocalSlot*, struct LocalSlot*, struct LocalSlot*);
             bool doSwitch(struct LocalSlot*, struct LocalSlot*, struct LocalSlot*);
             bool doSearch(uint32_t, struct LocalSlot*, struct LocalSlot**, struct LocalSlot**);
+            void doDelete(struct LocalSlot*);
+            void doCleanups(struct List*);
 
             struct List* debugGetBucket(uint32_t);
         };
