@@ -15,8 +15,8 @@
 int main() {
 
     char* test_payload = "Literature adds to reality, it does not simply describe it. \
-        It enriches the necessary competencies that daily life requires and provides; and in \
-        this respect, it irrigates the deserts that our lives have already become.";
+It enriches the necessary competencies that daily life requires and provides; and in \
+this respect, it irrigates the deserts that our lives have already become.";
 
     char* target = test_payload;
 
