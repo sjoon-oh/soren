@@ -18,9 +18,7 @@
 #include <thread>
 
 // Resource Representation
-#include "partition.hh"
 #include "connector.hh"
-
 #include "commons.hh"
 
 #include <infiniband/verbs.h>

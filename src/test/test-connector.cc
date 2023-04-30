@@ -82,7 +82,10 @@ int main() {
     char* buf = "The past can hurt. But from the way I see it, you can either run from it, or learn from it.";
 
     for (int i = 0; i < 10; i++) {
-        replicator.doPropose(reinterpret_cast<uint8_t*>(buf + (i * 6)), 6);
+        replicator.doPropose(
+            reinterpret_cast<uint8_t*>(buf + (i * 6)), 6,
+            reinterpret_cast<uint8_t*>(buf + (i * 6)), 6
+            );
         sleep(0.5);
     }
 

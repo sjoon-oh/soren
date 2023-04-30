@@ -12,6 +12,12 @@ namespace soren {
 
     const uint32_t REPLAYER_READY = 0xdeadface;
 
+    enum {
+        FOOTPRINT_INSERTED,
+        FOOTPRINT_SWITCHED,
+        FOOTPRINT_INVALID,
+    };
+
     struct __attribute__((packed)) LogStat {
         uint32_t    n_prop;                     // Current proposal number
         uint32_t    offset;                     // MR buffer offset.
@@ -35,11 +41,13 @@ namespace soren {
         int32_t                 canary;
     };
 
-    struct __attribute__((packed)) LocalSlot {
+    struct LocalSlot {
+        struct HeaderSlot   header;
         struct LocalSlot*   next_slot;
+        
         uint32_t            hashed_key;
         struct timespec     timestamp;
-        struct HeaderSlot   header;
+        uint8_t             footprint;
     };
 
     struct __attribute__((packed)) SlotCanary {

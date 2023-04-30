@@ -20,7 +20,6 @@ this respect, it irrigates the deserts that our lives have already become.";
 
     char* target = test_payload;
 
-    
     printf("SOREN C-WRAPPER DEMO\n");
     cwInitSoren(10, 2);
 
@@ -30,7 +29,7 @@ this respect, it irrigates the deserts that our lives have already become.";
     for (int i = 0; i < 10; i++) {
         for (int off = 0; off < strlen(test_payload); off += 17) {
             ts_idx = cwMarkTsBefore();
-            cwPropose((uint8_t*)(target + off), 17, (uint16_t)(*(target + off)));
+            cwPropose((uint8_t*)(target + off), 17, (uint8_t*)(target + off), 4);
             cwMarkTsAfter(ts_idx);
         }
     }

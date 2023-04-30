@@ -159,10 +159,10 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
         reinterpret_cast<soren::Replicator*>(glob_replicator)->doLaunchPlayer(glob_nplayers, sp);
 }
 
-void cwPropose(uint8_t* arg_addr, size_t arg_size, uint16_t arg_keypref) {
+void cwPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_t* arg_keypref, size_t arg_keysz) {
 
     reinterpret_cast<soren::Replicator*>(glob_replicator)->doPropose(
-        arg_addr, arg_size, arg_keypref
+        arg_memaddr, arg_memsz, arg_keypref, arg_keysz
     );
 }
 

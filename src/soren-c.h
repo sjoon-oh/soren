@@ -32,7 +32,7 @@ void    cwCleanConnection(void*);
 int     cwGetNumPlayers(void*);
 
 void    cwInitSoren(uint32_t, uint32_t);        // Re-written in C, of soren::InitSoren().
-void    cwPropose(uint8_t*, size_t, uint16_t);
+void    cwPropose(uint8_t*, size_t, uint8_t*, size_t);
 
 void    cwCleanSoren();                         // Re-written in C, of soren::cleanSoren().
 

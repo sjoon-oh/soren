@@ -25,7 +25,10 @@ this respect, it irrigates the deserts that our lives have already become.");
     for (int i = 0; i < 10; i++) {
         for (int off = 0; off < test_payload.size(); off += 31) {
             
-            soren::getReplicator()->doPropose(reinterpret_cast<uint8_t*>(target + off), 32, (uint16_t)(*(target + off)));
+            soren::getReplicator()->doPropose(
+                reinterpret_cast<uint8_t*>(target + off), 32,   // Target memory addr
+                reinterpret_cast<uint8_t*>(target + off), 8     // Key buffer
+                );
         }
     }
     

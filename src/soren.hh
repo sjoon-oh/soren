@@ -15,7 +15,7 @@
 #include "heartbeat.hh"
 
 // Key spaces.
-#include "partition.hh"
+#include "dependency.hh"
 
 //
 // This defines the player's role: replicator and replayer. 

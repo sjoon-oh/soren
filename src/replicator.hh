@@ -7,6 +7,7 @@
 
 
 #include "player.hh"
+#include "dependency.hh"
 
 #include <vector>
 #include <map>     
@@ -30,12 +31,14 @@ namespace soren {
         // Do not let any player to reallocate or release these resources.
         // It is Hartebeest's responsibility to control the RDMA resources.
         //
-        std::map<uint32_t, struct ibv_mr*>    mr_hdls{};
-        std::map<uint32_t, struct ibv_qp*>    qp_hdls{};
+        std::map<uint32_t, struct ibv_mr*>      mr_hdls{};
+        std::map<uint32_t, struct ibv_qp*>      qp_hdls{};
 
-        std::vector<struct ibv_mr*>           mr_remote_hdls{};
+        std::vector<struct ibv_mr*>             mr_remote_hdls{};
 
         std::array<WorkerThread, MAX_NWORKER>   workers;
+        
+        DependencyChecker   dep_checker;
 
         // Every player has fixed number of maximum worker sets.
         // However, every element may not be alive.
@@ -73,6 +76,6 @@ namespace soren {
 
         // Launch a worker thread.
         int doLaunchPlayer(uint32_t, int);
-        void doPropose(uint8_t*, size_t, uint16_t = 0);
+        void doPropose(uint8_t*, size_t, uint8_t*, size_t);
     };
 }

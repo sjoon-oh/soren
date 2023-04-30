@@ -10,6 +10,9 @@
 #include <thread>
 #include <functional>
 
+// #include <iostream>
+
+// #include "../commons.hh"
 #include "../soren.hh"
 
 static soren::LoggerFileOnly soren_lgr_ins_swt("hash-ins-swt", "soren-hashtable-mt-ins-swt.test.log");
@@ -34,7 +37,7 @@ void printAll(soren::LoggerFileOnly* arg_logger, struct List* arg_list) {
     struct soren::LocalSlot* next_slot;
 
     uint32_t hashed_key, front_val = 0;
-    uint16_t owner;
+    uint16_t owner, footprint;
 
     uint32_t size = 1;
 
@@ -45,19 +48,20 @@ void printAll(soren::LoggerFileOnly* arg_logger, struct List* arg_list) {
     // The current slot's status is marked at next_slot member.
     while (current_slot != &arg_list->head) {
         
-        hashed_key = current_slot->hashed_key;
-        owner = current_slot->header.owner;
+        hashed_key  = current_slot->hashed_key;
+        owner       = current_slot->header.owner;
+        footprint   = current_slot->footprint;
 
         next_slot = current_slot->next_slot;
 
         if (IS_MARKED_AS_DELETED(next_slot))
-            SOREN_LOGGER_INFO(*arg_logger, "[Deleted] > [{:3d}] Hash: {:12d}, Owned: {:4d}", size, hashed_key, owner);
+            SOREN_LOGGER_INFO(*arg_logger, "[Deleted] > [{:3d}] Hash: {:12d}, Owned: {:4d}, OW({})", size, hashed_key, owner, footprint);
         
         else if (IS_MARKED_AS_PROTECTED(next_slot))
-            SOREN_LOGGER_INFO(*arg_logger, "[Protect] > [{:3d}] Hash: {:12d}, Owned: {:4d}", size, hashed_key, owner);
+            SOREN_LOGGER_INFO(*arg_logger, "[Protect] > [{:3d}] Hash: {:12d}, Owned: {:4d}, OW({})", size, hashed_key, owner, footprint);
 
         else 
-            SOREN_LOGGER_INFO(*arg_logger, "[       ] > [{:3d}] Hash: {:12d}, Owned: {:4d}", size, hashed_key, owner);
+            SOREN_LOGGER_INFO(*arg_logger, "[       ] > [{:3d}] Hash: {:12d}, Owned: {:4d}, OW({})", size, hashed_key, owner, footprint);
 
         size++;
 
@@ -104,6 +108,8 @@ int main() {
     // Initialize randomization device
     std::random_device random_device;
     std::mt19937 generator(random_device());
+
+    
 
     SOREN_LOGGER_INFO(soren_lgr_ins_swt, "Insert tests.");
 
@@ -166,15 +172,19 @@ int main() {
                 is_success = arg_ht.doInsert(&arg_rndslots[idx], prev, next);
                 if (!is_success)
                     SOREN_LOGGER_INFO(soren_lgr_ins_swt, "Insert failed: Owner thread ({}), for hash: {:12d}", owner, collided_hash);
-                else
+                else {
+                    arg_rndslots[idx].footprint = soren::FOOTPRINT_INSERTED;
                     SOREN_LOGGER_INFO(soren_lgr_ins_swt, "Insert OK: Owner thread ({}), for hash: {:12d}", owner, collided_hash);
+                }
             }
             else {
                 is_success = arg_ht.doSwitch(&arg_rndslots[idx], prev, next);
                 if (!is_success)
                     SOREN_LOGGER_INFO(soren_lgr_ins_swt, "Switch failed: Owner thread ({}), for hash: {:12d}", owner, collided_hash);
-                else
+                else {
+                    arg_rndslots[idx].footprint = soren::FOOTPRINT_SWITCHED;
                     SOREN_LOGGER_INFO(soren_lgr_ins_swt, "Switch OK: Owner thread ({}), for hash: {:12d}", owner, collided_hash);
+                }
             }
         }
     };

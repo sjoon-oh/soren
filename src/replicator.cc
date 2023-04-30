@@ -79,8 +79,8 @@ int soren::Replicator::__findNeighborAliveWorkerHandle(uint32_t arg_hdl) {
 /// @param arg_players 
 /// @param arg_ranger 
 /// @param arg_subpar 
-soren::Replicator::Replicator(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_ranger = 10, uint32_t arg_subpar = 1) : 
-    node_id(arg_nid), nplayers(arg_players), ranger(arg_ranger), sub_par(arg_subpar) {
+soren::Replicator::Replicator(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_ranger = 10, uint32_t arg_subpar = 1)
+    : node_id(arg_nid), nplayers(arg_players), ranger(arg_ranger), sub_par(arg_subpar) {
         if (arg_subpar > MAX_SUBPAR)
             sub_par = MAX_SUBPAR;
     }
@@ -533,13 +533,20 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
 /// @param arg_addr 
 /// @param arg_size 
 /// @param arg_keypref 
-void soren::Replicator::doPropose(uint8_t* arg_addr, size_t arg_size, uint16_t arg_keypref) {
+void soren::Replicator::doPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_t* arg_keypref, size_t arg_keysz) {
 
     // Here eveything will be replicated.
     // Sub partition can 8 max.
     uint32_t owner_hdl = 0;
+    uint16_t keyval = 0;
+
+    if (arg_keysz < sizeof(uint16_t))
+        keyval = static_cast<char>(*arg_keypref);
+    else
+        keyval = static_cast<uint16_t>(*arg_keypref);
+
     if (sub_par > 1)
-        owner_hdl = arg_keypref % sub_par;
+        owner_hdl = keyval % sub_par;
     else
         ;
 
@@ -559,13 +566,31 @@ void soren::Replicator::doPropose(uint8_t* arg_addr, size_t arg_size, uint16_t a
     // Set the local buffer, and let the worker handle the slot.
     // Since this is the only place that next_free_sidx is increased atomically, no overwrites to
     // the others' slots will happen.
-    workspace[slot_idx].header.addr = reinterpret_cast<uintptr_t>(arg_addr);
-    workspace[slot_idx].header.size = arg_size;
+    workspace[slot_idx].header.addr = reinterpret_cast<uintptr_t>(arg_memaddr);
+    workspace[slot_idx].header.size = arg_memsz;
+
+    workspace[slot_idx].footprint = FOOTPRINT_INSERTED;
+
+    int retcode = dep_checker.doTryInsert(&workspace[slot_idx], arg_keypref, arg_memsz);
+
+    //
+    // In case it is inserted, this means that there are no pending former requests. 
+    if (retcode == RETCODE_INSERTED) {
+        ;
+
+
+    } else if (retcode == RETCODE_SWITCHED) {
+        ;
+    }
+    else
+        abort();    // Abort for now.
 
     workers.at(owner_hdl).outstanding.fetch_add(1);
 
     while (workers.at(owner_hdl).finn_proc_sidx.load() == slot_idx)
         ;
+    
+    dep_checker.doDelete(&workspace[slot_idx]);
 
     workers.at(owner_hdl).outstanding.fetch_sub(1);
 }
