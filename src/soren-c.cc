@@ -72,6 +72,14 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
         new soren::Replayer(glob_node_id, glob_nplayers, glob_ranger, arg_subpar));
     
     //
+    // Initiate the replicator. If this node ID is 'some_id', 
+    //  launch a replicator thread that distributes data in 'some_id' space.
+    // Before initiating Replicator worker threads,
+    //  make sure that all replayers in a same node are initiated.
+    glob_replicator = reinterpret_cast<soren::Replicator*>(
+        new soren::Replicator(glob_node_id, glob_nplayers, glob_ranger, arg_subpar));
+
+    //
     // There are 2*(n-1)*subpar replayers in Soren. 
     //  Replayers' objective is to inject replicated request into the applications,
     //  thus should have its own Memory Region. 
@@ -101,7 +109,7 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     for (int nid = 0; nid < glob_nplayers; nid++) {
         if (nid != glob_node_id) {
             for (int sp = 0; sp < arg_subpar; sp++)
-                reinterpret_cast<soren::Replayer*>(glob_replayer)->doLaunchPlayer(nid, sp);
+                reinterpret_cast<soren::Replayer*>(glob_replayer)->doLaunchPlayer(nid, sp, reinterpret_cast<soren::Replicator*>(glob_replicator));
         }
     }
 
@@ -110,8 +118,8 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     //  launch a replicator thread that distributes data in 'some_id' space.
     // Before initiating Replicator worker threads,
     //  make sure that all replayers in a same node are initiated.
-    glob_replicator = reinterpret_cast<soren::Replicator*>(
-        new soren::Replicator(glob_node_id, glob_nplayers, glob_ranger, arg_subpar));
+    // glob_replicator = reinterpret_cast<soren::Replicator*>(
+    //     new soren::Replicator(glob_node_id, glob_nplayers, glob_ranger, arg_subpar));
 
     //
     // A replicator (or its threads) is the one who do the RDMA writes/reads. 
@@ -179,6 +187,7 @@ void cwCleanSoren() {
     }
 
     sleep(10);      // Give some space. Will ya?
+    printf("Workers softlanded.\n");
 
     delete reinterpret_cast<soren::Replicator*>(glob_replicator);
     delete reinterpret_cast<soren::Replayer*>(glob_replayer);

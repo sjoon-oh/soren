@@ -133,6 +133,38 @@ void soren::hash::LfHashTable::__elemCleanups(struct List* arg_list) {
 
 
 
+/// @brief Do cleanups for a list, managed by the hash table instance.
+/// @param arg_list 
+/// @param arg_slot 
+void soren::hash::LfHashTable::__elemCleanupAfterSlot(struct List* arg_list, struct LocalSlot* arg_slot) {
+
+    struct LocalSlot *curr, *prev;           // current cell & previous cell.  
+    struct LocalSlot *curr_next, *prev_next; // 
+
+    prev = arg_slot;
+    curr = prev->next_slot; 
+    curr_next = curr->next_slot;
+
+    while (curr != &arg_list->head) {
+
+        if (!IS_MARKED_AS_DELETED(curr_next)) {
+            if (!IS_SAME_BASEREF(prev_next, curr))
+                CAS(&(prev->next_slot), prev_next, GET_SAME_MARK(curr, prev_next));
+
+            prev = curr; 
+            prev_next = prev->next_slot; 
+        }
+
+        curr = GET_UNMARKED_REFERENCE(curr_next);
+        curr_next = curr->next_slot;
+    }
+
+    if (!IS_SAME_BASEREF(prev_next, curr))
+        CAS(&(prev->next_slot), prev_next, GET_SAME_MARK(curr, prev_next));
+}
+
+
+
 struct List* soren::hash::LfHashTable::__getBucket(uint32_t arg_idx) {
     
     if (arg_idx >= nelem) arg_idx %= nelem;
@@ -303,7 +335,7 @@ bool soren::hash::LfHashTable::doSearch(
 
 
 
-struct List* soren::hash::LfHashTable::debugGetBucket(uint32_t arg_idx) {
+struct List* soren::hash::LfHashTable::getBucket(uint32_t arg_idx) {
     return __getBucket(arg_idx);
 }
 
@@ -317,4 +349,10 @@ void soren::hash::LfHashTable::doDelete(struct LocalSlot* arg_target) {
 
 void soren::hash::LfHashTable::doCleanups(struct List* arg_list) {
     __elemCleanups(arg_list);
+}
+
+
+
+void soren::hash::LfHashTable::doCleanupAfterSlot(struct List* arg_list, struct LocalSlot* arg_slot) {
+    __elemCleanupAfterSlot(arg_list, arg_slot);
 }

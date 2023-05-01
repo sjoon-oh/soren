@@ -13,9 +13,8 @@ namespace soren {
     const uint32_t REPLAYER_READY = 0xdeadface;
 
     enum {
-        FOOTPRINT_INSERTED,
-        FOOTPRINT_SWITCHED,
-        FOOTPRINT_INVALID,
+        FOOTPRINT_REPLICATED,
+        FOOTPRINT_UNREPLICATED,
     };
 
     struct __attribute__((packed)) LogStat {
@@ -35,8 +34,10 @@ namespace soren {
     struct __attribute__((packed)) HeaderSlot {
         struct RequestSlot      reqs;
         uint32_t                n_prop;
-        uintptr_t               addr;
-        uint16_t                size;
+        uintptr_t               mem_addr;
+        uint16_t                mem_size;
+        uintptr_t               key_addr;
+        uint16_t                key_size;
         uint16_t                owner;          // Who owns this key?
         int32_t                 canary;
     };

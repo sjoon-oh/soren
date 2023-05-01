@@ -26,6 +26,8 @@ namespace soren {
         uint32_t        ranger;
         uint32_t        sub_par;    // Local sub partitions
 
+        uint32_t        propose_cnt;
+
         //
         // These resources are just borrowed (copied) version. 
         // Do not let any player to reallocate or release these resources.

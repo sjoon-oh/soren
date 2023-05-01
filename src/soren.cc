@@ -58,6 +58,13 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     //
     // Initiate the replayer
     INST_REPLAYER.reset(new Replayer(glob_node_id, glob_nplayers, arg_ranger, arg_subpar));
+    
+    //
+    // Initiate the replicator. If this node ID is 'some_id', 
+    //  launch a replicator thread that distributes data in 'some_id' space.
+    // Before initiating Replicator worker threads,
+    //  make sure that all replayers in a same node are initiated.
+    INST_REPLICATOR.reset(new Replicator(glob_node_id, glob_nplayers, arg_ranger, arg_subpar));
 
     //
     // There are 2*(n-1)*subpar replayers in Soren. 
@@ -89,7 +96,7 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     for (int nid = 0; nid < glob_nplayers; nid++) {
         if (nid != glob_node_id) {
             for (int sp = 0; sp < arg_subpar; sp++)
-                INST_REPLAYER->doLaunchPlayer(nid, sp);
+                INST_REPLAYER->doLaunchPlayer(nid, sp, INST_REPLICATOR.get());
         }
     }
 
@@ -98,7 +105,7 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     //  launch a replicator thread that distributes data in 'some_id' space.
     // Before initiating Replicator worker threads,
     //  make sure that all replayers in a same node are initiated.
-    INST_REPLICATOR.reset(new Replicator(glob_node_id, glob_nplayers, arg_ranger, arg_subpar));
+    // INST_REPLICATOR.reset(new Replicator(glob_node_id, glob_nplayers, arg_ranger, arg_subpar));
 
     //
     // A replicator (or its threads) is the one who do the RDMA writes/reads. 

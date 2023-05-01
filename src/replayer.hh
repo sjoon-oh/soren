@@ -6,6 +6,7 @@
  */
 
 #include "player.hh"
+#include "replicator.hh"
 
 #include <map>     
 #include <array>
@@ -63,7 +64,7 @@ namespace soren {
         void doForceKillWorker(uint32_t);   // May have unexpected behaviour.
 
         // Launch a worker thread.
-        int doLaunchPlayer(uint32_t, int);
+        int doLaunchPlayer(uint32_t, int, Replicator*);
         bool isWorkerAlive(uint32_t);
     };
 }

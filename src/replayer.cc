@@ -11,8 +11,11 @@
 #include "connector.hh"
 #include "hartebeest-wrapper.hh"
 
+#include "replicator.hh"
+
 #include <infiniband/verbs.h>
 
+#include <cstdio>
 #include <iostream>
 
 namespace soren {
@@ -139,7 +142,7 @@ void soren::Replayer::doForceKillWorker(uint32_t arg_hdl) {
 /// @param arg_from_nid 
 /// @param arg_cur_sp 
 /// @return 
-int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
+int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Replicator* arg_replicator) {
 
     int handle = __findEmptyWorkerHandle();         // Find the next index with unused WorkerThread array.
     WorkerThread& wrkr_inst = workers.at(handle);
@@ -158,7 +161,8 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
             
             const uint32_t arg_nid,                             // Node ID
             const uint32_t arg_from_nid,                        // Node ID that sends data from.
-            const int arg_current_sp                            // Sub partition, (in case config changes.)
+            const int arg_current_sp,                           // Sub partition, (in case config changes.)
+            Replicator* arg_replicator
         ) {
             
             std::string log_fname = "soren_replayer_wt_" + std::to_string(arg_hdl) + ".log";
@@ -262,7 +266,7 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
                             int32_t header_canary = header->canary;
                             int32_t slot_canary = 
                                 reinterpret_cast<struct SlotCanary*>(
-                                    msg_base + sizeof(struct HeaderSlot) + header->size)->canary;
+                                    msg_base + sizeof(struct HeaderSlot) + header->mem_size)->canary;
 
                             // SOREN_LOGGER_INFO(worker_logger, 
                             //     "Expected Prop({}): \n- header prop: ({}), size: {}\n- canary header/end: ({})/({})", 
@@ -271,16 +275,26 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
                             if ((header_canary == slot_canary) && (header->n_prop == (n_prop + 1))) {
                                 SOREN_LOGGER_INFO(worker_logger, 
                                     "Prop({}): , Size({})\n- canary detected: ({})\n- content: {}", 
-                                    (uint32_t)header->n_prop, (uint32_t)header->size, 
-                                    (int32_t)header->canary, (char*)(header->addr));
-
-                                // Do something here, REPLAY!!
+                                    (uint32_t)header->n_prop, (uint32_t)header->mem_size, 
+                                    (int32_t)header->canary, (char*)(header->mem_addr));
                                 
+                                // Pseudo code: If the owner is not in this node, make it check again 
+                                if (header->owner == arg_nid) {
+                                    arg_replicator->doPropose(
+                                        reinterpret_cast<uint8_t*>(header->mem_addr), header->mem_size,
+                                        reinterpret_cast<uint8_t*>(header->key_addr), header->key_size
+                                    );
+                                }
+
+                                //
+                                // Do something here, REPLAY!!
+                                {
 
 
 
 
-
+                                    ;
+                                }
                             }
                             else 
                                 continue;
@@ -291,12 +305,12 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
                             header->canary << 4;
                             n_prop = header->n_prop;
 
-                            mr_offset += (sizeof(struct HeaderSlot) + header->size + sizeof(struct SlotCanary));
+                            mr_offset += (sizeof(struct HeaderSlot) + header->mem_size + sizeof(struct SlotCanary));
                             mr_linfree = BUF_SIZE - mr_offset;
 
                             // 4. Set the next aligned offset.
                             prepareNextAlignedOffset(
-                                mr_offset, mr_linfree, header->size);
+                                mr_offset, mr_linfree, header->mem_size);
                         }
                         
                         // arg_sig.store(SIG_WORKEND);
@@ -312,7 +326,7 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp) {
             std::ref(wrkr_inst.wrk_sig), 
             wrkr_inst.wrkspace, handle,
             std::ref(mr_hdls),
-            node_id, arg_from_nid, arg_cur_sp
+            node_id, arg_from_nid, arg_cur_sp, arg_replicator
     );
 
     // Register to the fixed array, workers. 

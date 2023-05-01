@@ -36,8 +36,10 @@ this respect, it irrigates the deserts that our lives have already become.";
 
     sleep(20);
 
-    printf("Exporting...\n");
-    cwDumpTs();    
+    printf("Exporting statistics...\n");
+    cwDumpTs();
+
+    printf("Cleaning up SOREN...\n");
 
     cwCleanSoren();
     printf("SOREN C-WRAPPER END\n");

@@ -145,8 +145,8 @@ int main() {
         }
     }
 
-    bucket              = hash_table.debugGetBucket(random_gen_slots[0].hashed_key);
-    reference_bucket    = reference_ht.debugGetBucket(reference_slots[0].hashed_key);
+    bucket              = hash_table.getBucket(random_gen_slots[0].hashed_key);
+    reference_bucket    = reference_ht.getBucket(reference_slots[0].hashed_key);
 
     // std::function<void(soren::LocalSlot*, int, soren::hash::LfHashTable&)> 
     auto worker_func = [](
@@ -173,7 +173,6 @@ int main() {
                 if (!is_success)
                     SOREN_LOGGER_INFO(soren_lgr_ins_swt, "Insert failed: Owner thread ({}), for hash: {:12d}", owner, collided_hash);
                 else {
-                    arg_rndslots[idx].footprint = soren::FOOTPRINT_INSERTED;
                     SOREN_LOGGER_INFO(soren_lgr_ins_swt, "Insert OK: Owner thread ({}), for hash: {:12d}", owner, collided_hash);
                 }
             }
@@ -182,14 +181,13 @@ int main() {
                 if (!is_success)
                     SOREN_LOGGER_INFO(soren_lgr_ins_swt, "Switch failed: Owner thread ({}), for hash: {:12d}", owner, collided_hash);
                 else {
-                    arg_rndslots[idx].footprint = soren::FOOTPRINT_SWITCHED;
                     SOREN_LOGGER_INFO(soren_lgr_ins_swt, "Switch OK: Owner thread ({}), for hash: {:12d}", owner, collided_hash);
                 }
             }
         }
     };
 
-    // printAll(&soren_lgr_ins_swt, hash_table.debugGetBucket(0));  // Test for this bucket.
+    // printAll(&soren_lgr_ins_swt, hash_table.getBucket(0));  // Test for this bucket.
 
     std::thread worker_1(worker_func, 
         random_gen_slots, 0, std::ref(hash_table));

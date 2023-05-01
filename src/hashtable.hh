@@ -69,6 +69,7 @@ namespace soren {
             bool __elemSwitch(struct LocalSlot*, struct LocalSlot*, struct LocalSlot*);
             void __elemDelete(struct LocalSlot*);
             void __elemCleanups(struct List*);
+            void __elemCleanupAfterSlot(struct List*, struct LocalSlot*);
 
             struct List* __getBucket(uint32_t);
             bool __elemSearch(uint32_t, struct LocalSlot*, struct LocalSlot**, struct LocalSlot**);
@@ -90,8 +91,9 @@ namespace soren {
             bool doSearch(uint32_t, struct LocalSlot*, struct LocalSlot**, struct LocalSlot**);
             void doDelete(struct LocalSlot*);
             void doCleanups(struct List*);
+            void doCleanupAfterSlot(struct List*, struct LocalSlot*);
 
-            struct List* debugGetBucket(uint32_t);
+            struct List* getBucket(uint32_t);
         };
 
     }

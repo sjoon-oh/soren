@@ -127,9 +127,9 @@ int main() {
             }
 
             if (bucket == nullptr)
-                bucket = hash_table.debugGetBucket(res);
+                bucket = hash_table.getBucket(res);
 
-            if (bucket == hash_table.debugGetBucket(res)) {
+            if (bucket == hash_table.getBucket(res)) {
                 SOREN_LOGGER_INFO(soren_lgr_insert, "Inserting random key: {}, hashed: {}", buffer, res);
                 printAll(&soren_lgr_insert, bucket);
 
@@ -173,14 +173,18 @@ int main() {
     SOREN_LOGGER_INFO(soren_lgr_switch, "End of switch tests.");
 
     SOREN_LOGGER_INFO(soren_lgr_delete, "Start of delete tests.");
-    for (auto& idx: sampled_idx) {
-        res = switch_slots[idx].hashed_key;
-        hash_table.doDelete(&switch_slots[idx]);
+    // for (auto& idx: sampled_idx) {
+    //     res = switch_slots[idx].hashed_key;
+    //     hash_table.doDelete(&switch_slots[idx]);
 
-        SOREN_LOGGER_INFO(soren_lgr_delete, "After delete: {}", res);
-        printAll(&soren_lgr_delete, bucket);
-    }
+    //     SOREN_LOGGER_INFO(soren_lgr_delete, "After delete: {}", res);
+    //     printAll(&soren_lgr_delete, bucket);
+    // }
 
+    hash_table.doCleanups(bucket);
+    
+    SOREN_LOGGER_INFO(soren_lgr_delete, "After cleanups");
+    printAll(&soren_lgr_delete, bucket);
 
 
     // SOREN_LOGGER_INFO(soren_lgr_delete, "After delete:");
