@@ -41,7 +41,7 @@ void soren::hbwrapper::initHartebeest() {
     std::call_once(
         HB_INIT_FLAG, [](Logger& arg_lgr){
             
-            SOREN_LOGGER_INFO(arg_lgr, "Initializing Hartebeest module.");
+            // SOREN_LOGGER_INFO(arg_lgr, "Initializing Hartebeest module.");
 
             HB_CONFIGURATOR.reset(new hartebeest::RdmaConfigurator());
             HB_EXCHANGER.reset(new hartebeest::ConfigFileExchanger());
@@ -61,7 +61,7 @@ void soren::hbwrapper::cleanHartebeest() {
     std::call_once(
         HB_CLEAN_FLAG, [](Logger& arg_lgr){
             
-            SOREN_LOGGER_INFO(arg_lgr, "Cleaning up Hartebeest module.");
+            // SOREN_LOGGER_INFO(arg_lgr, "Cleaning up Hartebeest module.");
 
             HB_CONFIGURATOR.release();
             HB_EXCHANGER.release();
@@ -107,7 +107,7 @@ bool soren::hbwrapper::initConfigFileExchanger() {
 /// @param arg_pd_id 
 /// @return 
 int soren::hbwrapper::registerPd(uint32_t arg_pd_id) {
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "PD({}) created.", arg_pd_id);
+    // SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "PD({}) created.", arg_pd_id);
     return HB_CONFIGURATOR->doRegisterPd2(arg_pd_id);
 }
 
@@ -130,7 +130,7 @@ uint8_t* soren::hbwrapper::allocateBuffer(size_t arg_len, int arg_align) {
 /// @param arg_len 
 /// @return 
 int soren::hbwrapper::registerMr(uint32_t arg_pd_id, uint32_t arg_mr_id, uint8_t* buf, size_t arg_len) {
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "MR({}) => PD({})", arg_mr_id, arg_pd_id);
+    // SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "MR({}) => PD({})", arg_mr_id, arg_pd_id);
     return HB_CONFIGURATOR->doCreateAndRegisterMr2(arg_pd_id, arg_mr_id, buf, arg_len);
 }
 
@@ -154,8 +154,8 @@ int soren::hbwrapper::registerRcQp(
 
         ret = HB_CONFIGURATOR->doCreateAndRegisterRcQp2(arg_pd_id, arg_qp_id, arg_send_cq_id, arg_recv_cq_id);
 
-        SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "QP({}), CQs({}/{}) => PD({})",
-            arg_qp_id, arg_send_cq_id, arg_recv_cq_id, arg_pd_id);
+        // SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "QP({}), CQs({}/{}) => PD({})",
+        //     arg_qp_id, arg_send_cq_id, arg_recv_cq_id, arg_pd_id);
 
         ret = HB_CONFIGURATOR->doInitQp2(arg_qp_id);        
         return ret;
@@ -302,7 +302,7 @@ int soren::hbwrapper::connectRcQps(
         uint32_t arg_remote_pd_id,  // Remote Protection Domain ID
         uint32_t arg_remote_qp_id   // Remote Queue Pair ID
         ) {
-    SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "Local QP({}) <=> Remote QP({})", arg_qp_id, arg_remote_qp_id);
+    // SOREN_LOGGER_INFO(hb_hbwrapper_lgr, "Local QP({}) <=> Remote QP({})", arg_qp_id, arg_remote_qp_id);
     
     hartebeest::Qp* qp = searchQp(arg_remote_nid, arg_remote_pd_id, arg_remote_qp_id);
     return HB_CONFIGURATOR->doConnectRcQp2(arg_qp_id, qp->pid, qp->qpn, qp->plid);
@@ -321,8 +321,8 @@ int soren::hbwrapper::getNumPlayers() {
 struct ibv_mr* soren::hbwrapper::getLocalMr(uint32_t arg_id) {
     struct ibv_mr* local_mr = HB_CONFIGURATOR->getMr(arg_id);
 
-    if (local_mr == nullptr)
-        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, "Local MR({}) not registered?", arg_id);
+    // if (local_mr == nullptr)
+    //     SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, "Local MR({}) not registered?", arg_id);
     
     return local_mr;
 }
@@ -331,8 +331,8 @@ struct ibv_qp* soren::hbwrapper::getLocalQp(uint32_t arg_id) {
 
     struct ibv_qp* local_qp = HB_CONFIGURATOR->getQp(arg_id);
 
-    if (local_qp == nullptr)
-        SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, "Local QP({}) not registered?", arg_id);
+    // if (local_qp == nullptr)
+    //     SOREN_LOGGER_ERROR(hb_hbwrapper_lgr, "Local QP({}) not registered?", arg_id);
     
     return local_qp;
 }

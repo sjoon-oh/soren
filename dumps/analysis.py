@@ -26,22 +26,26 @@ for fname in cur_files:
         reqs = len(lines)
 
         avg = numpy.mean(lines)
+        avg = round(avg, 2)
         tail_50 = lines[int(round(reqs * 0.5))]
         tail_90 = lines[int(round(reqs * 0.9))]
+        tail_95 = lines[int(round(reqs * 0.95))]
         tail_99 = lines[int(round(reqs * 0.99))]
         
 
         summary.append({
             "file": fname,
+            "reqs": reqs,
             "avg": avg,
             "50th": tail_50,
             "90th": tail_90,
+            "95th": tail_95,
             "99th": tail_99
         })
 
 
 with open("summary.csv", "w") as f:
-    writer = csv.DictWriter(f, fieldnames=['file', 'avg', '50th', '90th', '99th'])
+    writer = csv.DictWriter(f, fieldnames=['file', 'avg', 'reqs', '50th', '90th', '95th', '99th'], delimiter='\t')
 
     writer.writeheader()
     writer.writerows(summary)

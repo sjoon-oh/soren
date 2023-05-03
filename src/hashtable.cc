@@ -187,7 +187,7 @@ bool soren::hash::LfHashTable::__elemSearch(
         
         if (!IS_MARKED_AS_DELETED(curr_next)) {
             if (!IS_SAME_BASEREF(prev_next, curr)) {
-                CAS(&(prev->next_slot), prev_next, GET_SAME_MARK(curr, prev_next));
+                // CAS(&(prev->next_slot), prev_next, GET_SAME_MARK(curr, prev_next));
             }
 
             if (compare_func(arg_key, curr) == 0) {                
@@ -341,6 +341,12 @@ struct List* soren::hash::LfHashTable::getBucket(uint32_t arg_idx) {
 
 
 
+struct List* soren::hash::LfHashTable::getBucketByIdx(uint32_t arg_idx) {
+    return &bucket[arg_idx];
+}
+
+
+
 void soren::hash::LfHashTable::doDelete(struct LocalSlot* arg_target) {
     __elemDelete(arg_target);
 }
@@ -355,4 +361,12 @@ void soren::hash::LfHashTable::doCleanups(struct List* arg_list) {
 
 void soren::hash::LfHashTable::doCleanupAfterSlot(struct List* arg_list, struct LocalSlot* arg_slot) {
     __elemCleanupAfterSlot(arg_list, arg_slot);
+}
+
+
+
+void soren::hash::LfHashTable::doResetAll() {
+    // Init lists
+    for (int idx = 0; idx < nelem; idx++)
+        __listInit(&bucket[idx]);
 }

@@ -87,20 +87,20 @@ namespace soren {
         //
 
         LocalSlot*                          wrkspace;       // Per-thread workspace.
-        std::atomic<u_char>                 next_free_sidx; // Points to the next index to process. (Worker Thread - doPropose)
-        std::atomic<u_char>                 finn_proc_sidx; // Points to finished index. (Worker Thread - doPropose)
-        std::atomic<u_char>                 prepare_sidx;   // Points to the next free index that is shown between doPropose calls
+        std::atomic<uint32_t>               next_free_sidx; // Points to the next index to process. (Worker Thread - doPropose)
+        std::atomic<uint32_t>               finn_proc_sidx; // Points to finished index. (Worker Thread - doPropose)
+        std::atomic<uint32_t>               prepare_sidx;   // Points to the next free index that is shown between doPropose calls
                                                             // This gives a short term to fill in the slots of the doPropose callers.
         std::atomic<int32_t>                outstanding;    // Counts the pending requests. This limits the maximum number of doPropose calls.
                                                             
         WorkerThread() : wrkt_nhdl(0), wrk_sig(0), wrkspace(new LocalSlot[MAX_NSLOTS]), 
-            next_free_sidx(1), outstanding(0), finn_proc_sidx(128), prepare_sidx(1) { 
+            next_free_sidx(0), outstanding(0), finn_proc_sidx(0), prepare_sidx(0) { 
                 std::memset(wrkspace, 0, sizeof(struct LocalSlot) * MAX_NSLOTS);
             }
 
         WorkerThread(std::thread& arg_t, std::thread::native_handle_type arg_hdl) :
             wrkt(std::move(arg_t)), wrkt_nhdl(arg_hdl), wrk_sig(0), wrkspace(new LocalSlot[MAX_NSLOTS]), 
-            next_free_sidx(1), outstanding(0), finn_proc_sidx(128), prepare_sidx(1)
+            next_free_sidx(0), outstanding(0), finn_proc_sidx(0), prepare_sidx(0)
                 { 
                     std::memset(wrkspace, 0, sizeof(struct LocalSlot) * MAX_NSLOTS);
                 }

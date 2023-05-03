@@ -93,7 +93,10 @@ namespace soren {
             void doCleanups(struct List*);
             void doCleanupAfterSlot(struct List*, struct LocalSlot*);
 
+            void doResetAll();
+
             struct List* getBucket(uint32_t);
+            struct List* getBucketByIdx(uint32_t);
         };
 
     }

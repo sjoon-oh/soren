@@ -20,7 +20,7 @@
 //
 // Replicator methods
 namespace soren {
-    static Logger REPLICATOR_LOGGER("SOREN/REPLICATOR", "soren_replicator.log");
+    static LoggerFileOnly REPLICATOR_LOGGER("SOREN/REPLICATOR", "soren_replicator.log");
 }
 
 
@@ -109,8 +109,8 @@ bool soren::Replicator::doAddLocalMr(uint32_t arg_id, struct ibv_mr* arg_mr) {
     // Note that the resources are managed by the connector. 
     //  Replicator just borrows it by having its pointer, but should never free.
     
-    SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "MR({})[{}] => MR HDL map", 
-        arg_id, reinterpret_cast<void*>(arg_mr), arg_mr->addr);
+    // SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "MR({})[{}] => MR HDL map", 
+    //     arg_id, reinterpret_cast<void*>(arg_mr), arg_mr->addr);
 
     return true;
 }
@@ -133,7 +133,7 @@ bool soren::Replicator::doAddLocalQp(uint32_t arg_id, struct ibv_qp* arg_qp) {
     // Note that the resources are managed by the connector. 
     //  Replicator just borrows it by having its pointer, but should never free.
     
-    SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "QP({})[{}] => QP HDL map", arg_id, reinterpret_cast<void*>(arg_qp));
+    // SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "QP({})[{}] => QP HDL map", arg_id, reinterpret_cast<void*>(arg_qp));
     return true;
 }
 
@@ -199,8 +199,8 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
     std::thread player_thread(
         [](
             std::atomic<int32_t>& arg_sig,                      // Signal
-            std::atomic<u_char>& arg_next_free_sidx,            // Points to the next index to process.
-            std::atomic<u_char>& arg_finn_proc_sidx,            // Points to finished index.
+            std::atomic<uint32_t>& arg_next_free_sidx,            // Points to the next index to process.
+            std::atomic<uint32_t>& arg_finn_proc_sidx,            // Points to finished index.
 
             LocalSlot* arg_slots,                               // Workspace for this worker thread.
             const int arg_hdl,                                  // Worker Handle
@@ -330,7 +330,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
             bool disp_msg = false;
 
             int32_t signal = 0, rnd_canary = 0;
-            u_char next_free_sidx = 0,  // The slot index are tracked locally, starts from 1 as default.
+            uint32_t curproc_idx = 0,  // The slot index are tracked locally, starts from 1 as default.
                 finn_proc_sidx = 0;     // It is better to let it not exposed to the application thread 
                                         // (that calls doPropose() which waits for its request to finish).
                                         // The finished slot index (finn_proc_sidx) is only exposed to the
@@ -380,16 +380,10 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
 
                     default:
 
-                        disp_msg = false;
-                        next_free_sidx = arg_next_free_sidx.load();
-                        next_free_sidx--;
-
-                        while (next_free_sidx != finn_proc_sidx) {
+                        while (arg_slots[curproc_idx].ready) {
                             n_prop += 1;
                             
                             {
-                                finn_proc_sidx++;
-
                                 // local_mr_addr indicates the starting address of MR,
                                 // and msg_base indicates the starting address that the replicated data should
                                 // be stored.
@@ -400,7 +394,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                                 uintptr_t msg_base          = local_mr_addr + mr_offset;
                                 uintptr_t remote_mr_addr;
 
-                                LocalSlot* local_slot       = &(arg_slots[finn_proc_sidx]);
+                                LocalSlot* local_slot       = &(arg_slots[curproc_idx]);
                                 // local_slot->header.n_prop   = n_prop;
                                 // local_slot->header.canary   = rnd_canary;
 
@@ -410,28 +404,36 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                                 // 0. Before doing anything, check first whether it is deleted or not.                                
                                 // The first case: This slot is already replicated.
                                 if (local_slot->footprint == FOOTPRINT_REPLICATED) {
-                                    SOREN_LOGGER_INFO(worker_logger, "DepCheck: This slot({}) has been replicated.", finn_proc_sidx);
+                                    SOREN_LOGGER_INFO(worker_logger, "DepCheck: This slot({}) has been replicated.", curproc_idx);
 
-                                    arg_finn_proc_sidx.store(finn_proc_sidx);   // Fake end, non-blocking app threads.
+                                    arg_slots[curproc_idx].ready = false;
+                                    arg_slots[MAX_NSLOTS - 1].procs += 1;
+                                    // arg_slots[MAX_NSLOTS - 1].procs 
+                                    //     = (arg_slots[MAX_NSLOTS - 1].procs == MAX_NSLOTS) ? 0 : arg_slots[MAX_NSLOTS - 1].procs + 1;
+
+                                    curproc_idx = (curproc_idx == (MAX_NSLOTS - 1)) ? 0 : curproc_idx + 1;
                                     continue;
                                 }
                                     
                                 if (IS_MARKED_AS_DELETED(local_slot->next_slot)) {
 
-                                    SOREN_LOGGER_ERROR(worker_logger, "DepCheck: Deleted slot detected for slot idx({}), finding latest one...", finn_proc_sidx);
+                                    SOREN_LOGGER_ERROR(worker_logger, "DepCheck: Deleted slot detected for slot idx({}), finding latest one...", curproc_idx);
                                     
                                     local_slot = arg_depchecker.getNextValidSlot(local_slot);
                                     if (local_slot == nullptr) {
                                         SOREN_LOGGER_ERROR(worker_logger, "DepCheck: Cannot find valid slot. Continueing...");
-
-                                        arg_finn_proc_sidx.store(finn_proc_sidx);   // Fake end, non-blocking app threads.
-                                        continue;
                                     }
 
+                                    arg_slots[curproc_idx].ready = false;
+                                    arg_slots[MAX_NSLOTS - 1].procs += 1;
+
+                                    curproc_idx = (curproc_idx == (MAX_NSLOTS - 1)) ? 0 : curproc_idx + 1;
+
                                     local_slot->footprint = FOOTPRINT_REPLICATED;   // Mark as invalid. 
+                                    continue;
                                 }
 
-                                SOREN_LOGGER_INFO(worker_logger, "DepCheck ended for current processing index: ({})", finn_proc_sidx);
+                                SOREN_LOGGER_INFO(worker_logger, "DepCheck ended for current processing index: ({})", curproc_idx);
 
                                 local_slot->header.n_prop   = n_prop;
                                 local_slot->header.canary   = rnd_canary;
@@ -441,8 +443,9 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                                 prepareNextAlignedOffset(mr_offset, mr_linfree, local_slot->header.mem_size);
 
                                 SOREN_LOGGER_INFO(worker_logger, 
-                                    "Replicator({}) PROPOSING...\n- current processing slot idx: {}, prop: {}\n- offset: {}, canary: {}\n- content: {}\n", 
-                                        arg_hdl, finn_proc_sidx, (uint32_t)local_slot->header.n_prop, mr_offset, (uint32_t)local_slot->header.canary, (char*)local_slot->header.mem_addr);
+                                    "Replicator({}) PROPOSING...\n- current processing slot idx: {}, prop: {}\n- offset: {}, canary: {}\n- content: {}\n- proc'd: {}\n", 
+                                        arg_hdl, curproc_idx, (uint32_t)local_slot->header.n_prop, mr_offset, 
+                                        (uint32_t)local_slot->header.canary, (char*)local_slot->header.mem_addr, arg_slots[MAX_NSLOTS - 1].procs);
 
                                 //
                                 // 2. Prepare header. 
@@ -530,6 +533,12 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                                     reinterpret_cast<void*>(msg_base), 
                                     0, (sizeof(struct HeaderSlot) + local_slot->header.mem_size + sizeof(struct SlotCanary)));
 
+                                arg_slots[curproc_idx].ready = false;
+                                arg_slots[MAX_NSLOTS - 1].procs += 1;
+
+                                curproc_idx = (curproc_idx == (MAX_NSLOTS - 1)) ? 0 : curproc_idx + 1;
+
+                                local_slot->footprint = FOOTPRINT_REPLICATED;   // Mark as invalid. 
                                 // std::memset(local_slot, 0, sizeof(struct LocalSlot));
                             }
 
@@ -537,6 +546,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                             // After the replication, it atomically stores finn_proc_sidx. 
                             //  An application is waiting for this value to have its request slot index.
                             //  If found, it can return from the doPropose function call.
+
                             arg_finn_proc_sidx.store(finn_proc_sidx);
                         }
 
@@ -592,10 +602,12 @@ void soren::Replicator::doPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_
     else
         ;
 
-    while (workers.at(owner_hdl).outstanding.load() == MAX_NSLOTS)
+
+    uint32_t slot_idx;
+    while ((slot_idx = workers.at(owner_hdl).next_free_sidx.fetch_add(1)) >= MAX_NSLOTS)
         ;   // Wait until an empty seat is there.
 
-    workers.at(owner_hdl).outstanding.fetch_add(1);
+    SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "doPropose idx: {}", slot_idx);
 
     //
     // Working with slots:
@@ -605,7 +617,7 @@ void soren::Replicator::doPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_
     // fill the space with the local buffer address and size, and wait for the worker thread to 
     // replicate.
     LocalSlot* workspace = workers.at(owner_hdl).wrkspace;
-    u_char slot_idx = workers.at(owner_hdl).prepare_sidx.fetch_add(1);   // app handle, prepare the fills.
+    // uint32_t slot_idx = workers.at(owner_hdl).prepare_sidx.fetch_add(1);
 
     // Set the local buffer, and let the worker handle the slot.
     // Since this is the only place that next_free_sidx is increased atomically, no overwrites to
@@ -615,16 +627,25 @@ void soren::Replicator::doPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_
     workspace[slot_idx].header.key_addr     = reinterpret_cast<uintptr_t>(arg_keypref);
     workspace[slot_idx].header.key_size     = arg_keysz;
 
-    workspace[slot_idx].footprint           = FOOTPRINT_UNREPLICATED;
-
     dep_checker.doTryInsert(&workspace[slot_idx], arg_keypref, arg_memsz);
 
-    workers.at(owner_hdl).next_free_sidx.fetch_add(1);   // Trigger the worker thread.
-    while (workers.at(owner_hdl).finn_proc_sidx.load() == slot_idx)
+    workspace[slot_idx].ready               = true;
+
+    SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Waiting for idx: {}", slot_idx);
+
+    while (workspace[slot_idx].footprint != FOOTPRINT_REPLICATED)
         ;
 
-    // Enabling the instant 
-    // dep_checker.doDelete(&workspace[slot_idx]);
+    if (slot_idx == (MAX_NSLOTS - 1)) {
 
-    workers.at(owner_hdl).outstanding.fetch_sub(1);
+        while (workspace[MAX_NSLOTS - 1].procs != MAX_NSLOTS)
+            ;
+
+        dep_checker.doResetAll();
+        std::memset(workspace, 0, sizeof(struct LocalSlot) * MAX_NSLOTS);
+
+        workers.at(owner_hdl).next_free_sidx.store(0);
+    }
+
+    // SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Finished idx: {}, processed: {}", slot_idx, workspace[MAX_NSLOTS - 1].procs);
 }

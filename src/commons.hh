@@ -13,8 +13,10 @@ namespace soren {
     const uint32_t REPLAYER_READY = 0xdeadface;
 
     enum {
-        FOOTPRINT_REPLICATED,
-        FOOTPRINT_UNREPLICATED,
+        FOOTPRINT_UNREPLICATED  = 0,
+        FOOTPRINT_REPLICATED    = 0x0f,
+        FOOTPRINT_PROCESSED     = 0x2f,
+        FOOTPRINT_READY         = 0x4f,
     };
 
     struct __attribute__((packed)) LogStat {
@@ -48,7 +50,10 @@ namespace soren {
         
         uint32_t            hashed_key;
         struct timespec     timestamp;
+
+        uint32_t            procs;
         uint8_t             footprint;
+        uint8_t             ready;
     };
 
     struct __attribute__((packed)) SlotCanary {

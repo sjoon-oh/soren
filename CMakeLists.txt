@@ -64,22 +64,6 @@ set(SOREN_SUFFIX_TEST   test)
 # )
 # target_link_libraries(${SOREN_TEST_HEARTBEAT} PUBLIC ${LIBSOREN})
 
-#
-# --------------------------------------
-# Target: SOREN_TEST_PARTITION
-# set(SOREN_TEST_PARTITION
-#     ${SOREN_PREFIX}-partitioner.${SOREN_SUFFIX_TEST})
-#     file(GLOB SOREN_TEST_PARTITION_SRCFILES 
-#     CONFIGURE_DEPENDS 
-#     ${CMAKE_SOURCE_DIR}/src/test/test-heartbeat.cc
-# )
-
-# add_executable(
-#     ${SOREN_TEST_PARTITION}  
-#     ${SOREN_TEST_PARTITION_SRCFILES}
-# )
-# target_link_libraries(${SOREN_TEST_PARTITION} PUBLIC ${LIBSOREN})
-
 
 #
 # --------------------------------------
@@ -102,7 +86,7 @@ set(SOREN_SUFFIX_TEST   test)
 # Target: SOREN_TEST_DEMO
 set(SOREN_TEST_DEMO
     ${SOREN_PREFIX}-demo.${SOREN_SUFFIX_TEST})
-    file(GLOB SOREN_TEST_DEMO_SRCFILES 
+file(GLOB SOREN_TEST_DEMO_SRCFILES 
     CONFIGURE_DEPENDS 
     ${CMAKE_SOURCE_DIR}/src/test/test-demo.cc
 )
@@ -118,7 +102,7 @@ target_link_libraries(${SOREN_TEST_DEMO} PUBLIC ${LIBSOREN})
 # Target: SOREN_TEST_DEMO
 set(SOREN_TEST_DEMO_SP
     ${SOREN_PREFIX}-demo-subpar.${SOREN_SUFFIX_TEST})
-    file(GLOB SOREN_TEST_DEMO_SP_SRCFILES 
+file(GLOB SOREN_TEST_DEMO_SP_SRCFILES 
     CONFIGURE_DEPENDS 
     ${CMAKE_SOURCE_DIR}/src/test/test-demo-subpar.cc
 )
@@ -134,7 +118,7 @@ target_link_libraries(${SOREN_TEST_DEMO_SP} PUBLIC ${LIBSOREN})
 # Target: SOREN_HASHTABLE_TEST_ST (Single Threaded Test)
 set(SOREN_TEST_HASHTABLE_ST
     ${SOREN_PREFIX}-hashtable-st.${SOREN_SUFFIX_TEST})
-    file(GLOB SOREN_TEST_HASHTABLE_ST_SRCFILES 
+file(GLOB SOREN_TEST_HASHTABLE_ST_SRCFILES 
     CONFIGURE_DEPENDS 
     ${CMAKE_SOURCE_DIR}/src/test/test-hashtable-st.cc
 )
@@ -150,7 +134,7 @@ target_link_libraries(${SOREN_TEST_HASHTABLE_ST} PUBLIC ${LIBSOREN})
 # Target: SOREN_HASHTABLE_TEST_MT (Multi-threaded Test)
 set(SOREN_TEST_HASHTABLE_MT
     ${SOREN_PREFIX}-hashtable-mt.${SOREN_SUFFIX_TEST})
-    file(GLOB SOREN_TEST_HASHTABLE_MT_SRCFILES 
+file(GLOB SOREN_TEST_HASHTABLE_MT_SRCFILES 
     CONFIGURE_DEPENDS 
     ${CMAKE_SOURCE_DIR}/src/test/test-hashtable-mt.cc
 )
@@ -160,3 +144,20 @@ add_executable(
     ${SOREN_TEST_HASHTABLE_MT_SRCFILES}
 )
 target_link_libraries(${SOREN_TEST_HASHTABLE_MT} PUBLIC ${LIBSOREN})
+
+
+#
+# --------------------------------------
+# Target: SOREN_EXP_STANDALONE (Standalone Test)
+set(SOREN_EXP_STANDALONE
+    soren-standalone.demo)
+file(GLOB SOREN_EXP_STANDALONE_SRCFILES
+    CONFIGURE_DEPENDS 
+    ${CMAKE_SOURCE_DIR}/src/standalone/exp-standalone.cc
+)
+
+add_executable(
+    ${SOREN_EXP_STANDALONE}  
+    ${SOREN_EXP_STANDALONE_SRCFILES}
+)
+target_link_libraries(${SOREN_EXP_STANDALONE} PUBLIC ${LIBSOREN})

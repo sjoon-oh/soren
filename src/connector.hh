@@ -22,7 +22,7 @@ namespace soren {
 #define     GET_SCQ_REPLICATOR(NID, RNID, SUBPAR)   (0x7a1200 + (10000 * uint32_t(SUBPAR)) + (100 * uint32_t(RNID)) + uint32_t(NID))
 #define     GET_RCQ_REPLICATOR(NID, RNID, SUBPAR)   (0x895440 + (10000 * uint32_t(SUBPAR)) + (100 * uint32_t(RNID)) + uint32_t(NID))
 
-    const size_t BUF_SIZE  = 2 * 1024 * 1024;
+    const size_t BUF_SIZE  = 2147483648;
     const size_t ALIGNMENT = 64;
 
     class Connector final {

@@ -55,7 +55,8 @@ namespace soren {
             file_lgr = spdlog::basic_logger_mt(arg_lgr_name, arg_filen);
 
             file_lgr->set_pattern("[%H:%M:%S %z][%^%L%$] %v");
-            file_lgr->set_level(spdlog::level::info);        // Above info.
+            // file_lgr->set_level(spdlog::level::info);        // Above info.
+            file_lgr->set_level(spdlog::level::off);        // Above info.
         }
 
         spdlog::logger* getLogger() { return file_lgr.get(); }

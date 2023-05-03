@@ -19,7 +19,7 @@
 #include <iostream>
 
 namespace soren {
-    static Logger REPLAYER_LOGGER("SOREN/REPLAYER", "soren_replayer.log");
+    static LoggerFileOnly REPLAYER_LOGGER("SOREN/REPLAYER", "soren_replayer.log");
 }
 
 

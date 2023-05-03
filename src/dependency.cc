@@ -87,17 +87,22 @@ struct soren::LocalSlot* soren::DependencyChecker::getNextValidSlot(struct Local
     while (current_slot != &bucket->head) {
 
         next_slot = current_slot->next_slot;
-
-        if (!IS_MARKED_AS_DELETED(next_slot) && 
-            (target_hashval == current_slot->hashed_key)) 
-            return current_slot;
         
-        current_slot = GET_UNMARKED_REFERENCE(next_slot);
+        if (IS_MARKED_AS_DELETED(next_slot))
+            current_slot = GET_UNMARKED_REFERENCE(next_slot);
+
+        else {
+            if (current_slot->hashed_key == target_hashval)
+                return current_slot;
+            else return nullptr;
+        }
     }
+}
 
-    // printBucket(hash_table.getBucket(target_hashval));
 
-    return nullptr;
+
+void soren::DependencyChecker::doResetAll() {
+    hash_table.doResetAll();
 }
 
 
@@ -141,4 +146,12 @@ void soren::DependencyChecker::printBucket(struct List* arg_list) {
 
     SOREN_LOGGER_INFO(DEPCHECKER_LGR, "          > ~~~ TAIL ~~~");
     SOREN_LOGGER_INFO(DEPCHECKER_LGR, "-------- List Print End --------\n");
+}
+
+
+
+void soren::DependencyChecker::printAll() {
+    for (int bucket_idx = 0; bucket_idx < is_deleting.size(); bucket_idx++) {
+        printBucket(hash_table.getBucketByIdx(bucket_idx));
+    }
 }

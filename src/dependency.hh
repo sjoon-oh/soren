@@ -21,6 +21,7 @@ namespace soren {
 
     const int HASHTABLE_SZ          = (1 << 20);
     const int HASHTABLE_NBUCKETS    = (HASHTABLE_SZ >> 3);
+    // const int HASHTABLE_NBUCKETS    = 50;
 
     class DependencyChecker {
     private:
@@ -38,9 +39,10 @@ namespace soren {
         bool doSearch(uint32_t, struct LocalSlot*, struct LocalSlot**, struct LocalSlot**);
         struct LocalSlot* getNextValidSlot(struct LocalSlot*);
 
-        void doCleanups();
+        void doResetAll();
 
         // For debug
         void printBucket(struct List*);
+        void printAll();
     };
 }
