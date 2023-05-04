@@ -13,11 +13,14 @@ import numpy
 cur_files = [f for f in listdir(".") if isfile(join(".", f))]
 cur_files.remove(__file__)          # Extract this script file.
 cur_files.remove('summary.csv')     # Extract existing CSV file.
+cur_files.remove('.DS_Store')       # Extract existing CSV file.
 
 
 summary = []
 
 for fname in cur_files:
+
+    print("Processing {}".format(fname))
 
     with open(fname, "r") as f:
         lines = [int(line.rstrip()) for line in f]

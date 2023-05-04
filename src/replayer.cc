@@ -219,10 +219,6 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Repli
                                         // If this is not set, the spawner may wait infinitely.
 
             //
-            // Test
-            // __testRdmaWrite(nullptr, wrkr_mr, nullptr, arg_nid, 1);
-
-            //
             // -- The main loop starts from here. --
             while (1) {
 
@@ -273,10 +269,15 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Repli
                             //     n_prop + 1, (uint32_t)header->n_prop, (uint32_t)header->size, header_canary, slot_canary);
 
                             if ((header_canary == slot_canary) && (header->n_prop == (n_prop + 1))) {
-                                SOREN_LOGGER_INFO(worker_logger, 
-                                    "Prop({}): , Size({})\n- canary detected: ({})\n- content: {}", 
-                                    (uint32_t)header->n_prop, (uint32_t)header->mem_size, 
-                                    (int32_t)header->canary, (char*)(header->mem_addr));
+
+                                // SOREN_LOGGER_INFO(worker_logger, 
+                                //     "Prop({}): , Size({})\n- canary detected: ({})\n- content: {}", 
+                                //     (uint32_t)header->n_prop, (uint32_t)header->mem_size, 
+                                //     (int32_t)header->canary, (char*)(header->mem_addr));
+
+                                if ((header->mem_addr == 0) || (header->mem_size == 0) ||
+                                        (header->key_addr == 0) || (header->key_size == 0))
+                                    continue;
                                 
                                 // Pseudo code: If the owner is not in this node, make it check again 
                                 if (header->owner == arg_nid) {
@@ -313,7 +314,6 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Repli
                                 mr_offset, mr_linfree, header->mem_size);
                         }
                         
-                        // arg_sig.store(SIG_WORKEND);
                         break;
 
                     default:

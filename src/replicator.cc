@@ -198,9 +198,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
     // Initiate a worker thread here.
     std::thread player_thread(
         [](
-            std::atomic<int32_t>& arg_sig,                      // Signal
-            std::atomic<uint32_t>& arg_next_free_sidx,            // Points to the next index to process.
-            std::atomic<uint32_t>& arg_finn_proc_sidx,            // Points to finished index.
+            WorkerThread& arg_wrkr_inst,
 
             LocalSlot* arg_slots,                               // Workspace for this worker thread.
             const int arg_hdl,                                  // Worker Handle
@@ -219,6 +217,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
             
             std::string log_fname = "soren_replicator_wt_" + std::to_string(arg_hdl) + ".log";
             std::string logger_name = "SOREN/RELPICATOR/W" + std::to_string(arg_hdl);
+
             LoggerFileOnly worker_logger(logger_name, log_fname);
             // Logger worker_logger(logger_name, log_fname);
 
@@ -265,17 +264,6 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
             struct LogStat* log_stat = reinterpret_cast<struct LogStat*>(wrkr_mr->addr);
             std::memset(log_stat, 0, sizeof(struct LogStat));
 
-            // 
-            // Send POST
-            
-            // This is a Test
-            // for (int nid = 0; nid < arg_npl; nid++)
-            //     if (nid != arg_nid)
-            //         __testRdmaWrite(
-            //             qps[nid], wrkr_mr, mrs[nid], arg_nid, 0
-            //         );
-            // sleep(3600);
-
             for (int nid = 0; nid < arg_npl; nid++) {
                 if (nid == arg_nid) continue;
 
@@ -320,9 +308,9 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
 
             SOREN_LOGGER_INFO(worker_logger, "Replicator({}) initialized to:\n- offset({}), prop({}).", arg_hdl, mr_offset, n_prop);
 
-            arg_finn_proc_sidx.store(128);  // Store non-zero.
-            arg_sig.store(SIG_READY);       // Set the signal ready, and alert the spawner thread.
-                                            // If this is not set, the spawner may wait infinitely.
+            // Set the signal ready, and alert the spawner thread.
+            // If this is not set, the spawner may wait infinitely.
+            arg_wrkr_inst.wrk_sig.store(SIG_READY);    
 
             // 
             // Worker handle also represents corresponding sub-partition. 
@@ -330,8 +318,8 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
             bool disp_msg = false;
 
             int32_t signal = 0, rnd_canary = 0;
-            uint32_t curproc_idx = 0,  // The slot index are tracked locally, starts from 1 as default.
-                finn_proc_sidx = 0;     // It is better to let it not exposed to the application thread 
+            uint32_t curproc_idx = 0;   // The slot index are tracked locally, starts from 1 as default.
+                                        // It is better to let it not exposed to the application thread 
                                         // (that calls doPropose() which waits for its request to finish).
                                         // The finished slot index (finn_proc_sidx) is only exposed to the
                                         // spawner.
@@ -342,11 +330,11 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
             // -- The main loop starts from here. --
             while (1) {
 
-                signal = arg_sig.load();    // Load signal.
-                rnd_canary = std::rand();   // Set the randomized canary value.
-                                            // For a proposal, it is designed to have unique random canary
-                                            // values, but multiple replication messages may have identical ones
-                                            // due to low-latency of RDMA and the number of pending requests.
+                signal = arg_wrkr_inst.wrk_sig.load();      // Load signal.
+                rnd_canary = std::rand();                   // Set the randomized canary value.
+                                                            // For a proposal, it is designed to have unique random canary
+                                                            // values, but multiple replication messages may have identical ones
+                                                            // due to low-latency of RDMA and the number of pending requests.
 
                 switch (signal) {
                     case SIG_PAUSE: 
@@ -383,155 +371,40 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                         while (arg_slots[curproc_idx].ready) {
                             n_prop += 1;
                             
-                            {
-                                // local_mr_addr indicates the starting address of MR,
-                                // and msg_base indicates the starting address that the replicated data should
-                                // be stored.
-                                //
-                                // Set the info.
+                            // local_mr_addr indicates the starting address of MR,
+                            // and msg_base indicates the starting address that the replicated data should
+                            // be stored.
+                            //
+                            // Set the info.
 
-                                uintptr_t local_mr_addr     = reinterpret_cast<uintptr_t>(wrkr_mr->addr);
-                                uintptr_t msg_base          = local_mr_addr + mr_offset;
-                                uintptr_t remote_mr_addr;
+                            uintptr_t local_mr_addr     = reinterpret_cast<uintptr_t>(wrkr_mr->addr);
+                            uintptr_t msg_base          = local_mr_addr + mr_offset;
+                            uintptr_t remote_mr_addr;
 
-                                LocalSlot* local_slot       = &(arg_slots[curproc_idx]);
-                                // local_slot->header.n_prop   = n_prop;
-                                // local_slot->header.canary   = rnd_canary;
+                            LocalSlot* local_slot       = &(arg_slots[curproc_idx]);
+                            SlotCanary slot_canary      = { .canary = rnd_canary };
 
-                                SlotCanary slot_canary      = { .canary = rnd_canary };
+                            //
+                            // 0. Before doing anything, check first whether it is deleted or not.                                
+                            // The first case: This slot is already replicated.
+                            if (local_slot->footprint == FOOTPRINT_REPLICATED) {
+                                SOREN_LOGGER_INFO(worker_logger, "DepCheck: This slot({}) has been replicated.", curproc_idx);
 
-                                //
-                                // 0. Before doing anything, check first whether it is deleted or not.                                
-                                // The first case: This slot is already replicated.
-                                if (local_slot->footprint == FOOTPRINT_REPLICATED) {
-                                    SOREN_LOGGER_INFO(worker_logger, "DepCheck: This slot({}) has been replicated.", curproc_idx);
+                                arg_slots[curproc_idx].ready = false;
+                                arg_slots[MAX_NSLOTS - 1].procs += 1;
 
-                                    arg_slots[curproc_idx].ready = false;
-                                    arg_slots[MAX_NSLOTS - 1].procs += 1;
-                                    // arg_slots[MAX_NSLOTS - 1].procs 
-                                    //     = (arg_slots[MAX_NSLOTS - 1].procs == MAX_NSLOTS) ? 0 : arg_slots[MAX_NSLOTS - 1].procs + 1;
+                                curproc_idx = (curproc_idx == (MAX_NSLOTS - 1)) ? 0 : curproc_idx + 1;
+                                continue;
+                            }
+                                
+                            if (IS_MARKED_AS_DELETED(local_slot->next_slot)) {
 
-                                    curproc_idx = (curproc_idx == (MAX_NSLOTS - 1)) ? 0 : curproc_idx + 1;
-                                    continue;
+                                SOREN_LOGGER_ERROR(worker_logger, "DepCheck: Deleted slot detected for slot idx({}), finding latest one...", curproc_idx);
+                                
+                                local_slot = arg_depchecker.getNextValidSlot(local_slot);
+                                if (local_slot == nullptr) {
+                                    SOREN_LOGGER_ERROR(worker_logger, "DepCheck: Cannot find valid slot. Continueing...");
                                 }
-                                    
-                                if (IS_MARKED_AS_DELETED(local_slot->next_slot)) {
-
-                                    SOREN_LOGGER_ERROR(worker_logger, "DepCheck: Deleted slot detected for slot idx({}), finding latest one...", curproc_idx);
-                                    
-                                    local_slot = arg_depchecker.getNextValidSlot(local_slot);
-                                    if (local_slot == nullptr) {
-                                        SOREN_LOGGER_ERROR(worker_logger, "DepCheck: Cannot find valid slot. Continueing...");
-                                    }
-
-                                    arg_slots[curproc_idx].ready = false;
-                                    arg_slots[MAX_NSLOTS - 1].procs += 1;
-
-                                    curproc_idx = (curproc_idx == (MAX_NSLOTS - 1)) ? 0 : curproc_idx + 1;
-
-                                    local_slot->footprint = FOOTPRINT_REPLICATED;   // Mark as invalid. 
-                                    continue;
-                                }
-
-                                SOREN_LOGGER_INFO(worker_logger, "DepCheck ended for current processing index: ({})", curproc_idx);
-
-                                local_slot->header.n_prop   = n_prop;
-                                local_slot->header.canary   = rnd_canary;
-
-                                //
-                                // 1. Alignment : 64 byte aligned by default.
-                                prepareNextAlignedOffset(mr_offset, mr_linfree, local_slot->header.mem_size);
-
-                                SOREN_LOGGER_INFO(worker_logger, 
-                                    "Replicator({}) PROPOSING...\n- current processing slot idx: {}, prop: {}\n- offset: {}, canary: {}\n- content: {}\n- proc'd: {}\n", 
-                                        arg_hdl, curproc_idx, (uint32_t)local_slot->header.n_prop, mr_offset, 
-                                        (uint32_t)local_slot->header.canary, (char*)local_slot->header.mem_addr, arg_slots[MAX_NSLOTS - 1].procs);
-
-                                //
-                                // 2. Prepare header. 
-                                //  The header is nothing but a copy of a Slot.
-                                std::memcpy(
-                                    reinterpret_cast<void*>(msg_base),
-                                    reinterpret_cast<void*>(&(local_slot->header)),
-                                    sizeof(struct HeaderSlot)
-                                );
-
-                                // SOREN_LOGGER_INFO(worker_logger, 
-                                //     "MEMCPY CHECK:\n- prop: {}, size: {}, canary: {}",
-                                //     (uint32_t)reinterpret_cast<Slot*>(msg_base)->n_prop,
-                                //     (uint32_t)reinterpret_cast<Slot*>(msg_base)->size,
-                                //     (uint32_t)reinterpret_cast<Slot*>(msg_base)->canary
-                                //     );
-
-                                //
-                                // 3. Fetch to the local memory region.
-                                //  Slot currently has a local memory address that the should-be-replicated data sits.
-                                //  Third stop fetches the data of the address into the local Memory Region.
-                                std::memcpy(
-                                    reinterpret_cast<void*>(msg_base + sizeof(struct HeaderSlot)),  // Destination   
-                                    reinterpret_cast<void*>(local_slot->header.mem_addr),               // Source
-                                    local_slot->header.mem_size                                         // Size, dah.
-                                );
-
-                                //
-                                // 4. Prepare slot canary.
-                                //  Set the last section of a continuous region to Canary.
-                                std::memcpy(
-                                    reinterpret_cast<void*>(msg_base + sizeof(struct HeaderSlot) + local_slot->header.mem_size),
-                                    &slot_canary,
-                                    sizeof(struct SlotCanary)
-                                );
-
-                                // 
-                                // 5. Replicate the data to remotes.
-                                for (int nid = 0; nid < arg_npl; nid++) {
-                                    if (nid == arg_nid) continue;
-                                    
-                                    //
-                                    // Update to per-remote contents. Currently the header section (of MR) holds
-                                    // local buffer address. This should be updated to the address of remote MR, 
-                                    // that points to the starting address of the replicated data.
-                                    remote_mr_addr = reinterpret_cast<uintptr_t>(mrs[nid]->addr);
-                                    reinterpret_cast<struct HeaderSlot*>(msg_base)->mem_addr
-                                        = remote_mr_addr + mr_offset + sizeof(struct HeaderSlot);
-
-                                    reinterpret_cast<struct HeaderSlot*>(msg_base)->key_addr
-                                        = remote_mr_addr + mr_offset + sizeof(struct HeaderSlot) 
-                                            + (local_slot->header.key_addr - local_slot->header.mem_addr);
-
-                                    // std::atomic_thread_fence(std::memory_order_release);
-
-                                    if (rdmaPost(
-                                            IBV_WR_RDMA_WRITE, 
-                                            qps[nid],               // Local Replicator's Queue Pair
-                                            msg_base,               // Local buffer address
-                                            (sizeof(struct HeaderSlot) 
-                                                + local_slot->header.mem_size + sizeof(struct SlotCanary)),              
-                                                                    // Buffer size
-                                            wrkr_mr->lkey,          // Local MR LKey
-                                            remote_mr_addr + mr_offset,
-                                                                    // Remote's address
-                                            mrs[nid]->rkey          // Remotes RKey
-                                            )
-                                        != 0)
-                                        SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Write failed.", arg_hdl);
-
-                                    // Wait until the RDMA write is finished.
-                                    if (waitSingleSCqe(qps[nid]) == -1)
-                                        SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Write failed. (CQ)", arg_hdl);;
-                                }
-
-                                mr_offset += (sizeof(struct HeaderSlot) + local_slot->header.mem_size + sizeof(struct SlotCanary));
-                                mr_linfree = BUF_SIZE - mr_offset;
-
-                                log_stat->offset = mr_offset;
-                                log_stat->n_prop = n_prop;
-
-                                //
-                                // Reset the MR.
-                                std::memset(
-                                    reinterpret_cast<void*>(msg_base), 
-                                    0, (sizeof(struct HeaderSlot) + local_slot->header.mem_size + sizeof(struct SlotCanary)));
 
                                 arg_slots[curproc_idx].ready = false;
                                 arg_slots[MAX_NSLOTS - 1].procs += 1;
@@ -539,27 +412,117 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                                 curproc_idx = (curproc_idx == (MAX_NSLOTS - 1)) ? 0 : curproc_idx + 1;
 
                                 local_slot->footprint = FOOTPRINT_REPLICATED;   // Mark as invalid. 
-                                // std::memset(local_slot, 0, sizeof(struct LocalSlot));
+                                continue;
                             }
 
-                            //
-                            // After the replication, it atomically stores finn_proc_sidx. 
-                            //  An application is waiting for this value to have its request slot index.
-                            //  If found, it can return from the doPropose function call.
+                            SOREN_LOGGER_INFO(worker_logger, "DepCheck ended for current processing index: ({})", curproc_idx);
 
-                            arg_finn_proc_sidx.store(finn_proc_sidx);
+                            local_slot->header.n_prop   = n_prop;
+                            local_slot->header.canary   = rnd_canary;
+
+                            //
+                            // 1. Alignment : 64 byte aligned by default.
+                            prepareNextAlignedOffset(mr_offset, mr_linfree, local_slot->header.mem_size);
+
+                            SOREN_LOGGER_INFO(worker_logger, 
+                                "Replicator({}) PROPOSING...\n- current processing slot idx: {}, prop: {}\n- offset: {}, canary: {}\n- content: {}\n- proc'd: {}\n", 
+                                    arg_hdl, curproc_idx, (uint32_t)local_slot->header.n_prop, mr_offset, 
+                                    (uint32_t)local_slot->header.canary, (char*)local_slot->header.mem_addr, arg_slots[MAX_NSLOTS - 1].procs);
+
+                            //
+                            // 2. Prepare header. 
+                            //  The header is nothing but a copy of a Slot.
+                            std::memcpy(
+                                reinterpret_cast<void*>(msg_base),
+                                reinterpret_cast<void*>(&(local_slot->header)),
+                                sizeof(struct HeaderSlot)
+                            );
+
+                            //
+                            // 3. Fetch to the local memory region.
+                            //  Slot currently has a local memory address that the should-be-replicated data sits.
+                            //  Third stop fetches the data of the address into the local Memory Region.
+                            std::memcpy(
+                                reinterpret_cast<void*>(msg_base + sizeof(struct HeaderSlot)),  // Destination   
+                                reinterpret_cast<void*>(local_slot->header.mem_addr),               // Source
+                                local_slot->header.mem_size                                         // Size, dah.
+                            );
+
+                            //
+                            // 4. Prepare slot canary.
+                            //  Set the last section of a continuous region to Canary.
+                            std::memcpy(
+                                reinterpret_cast<void*>(msg_base + sizeof(struct HeaderSlot) + local_slot->header.mem_size),
+                                &slot_canary,
+                                sizeof(struct SlotCanary)
+                            );
+
+                            // 
+                            // 5. Replicate the data to remotes.
+                            for (int nid = 0; nid < arg_npl; nid++) {
+                                if (nid == arg_nid) continue;
+                                
+                                //
+                                // Update to per-remote contents. Currently the header section (of MR) holds
+                                // local buffer address. This should be updated to the address of remote MR, 
+                                // that points to the starting address of the replicated data.
+                                remote_mr_addr = reinterpret_cast<uintptr_t>(mrs[nid]->addr);
+                                reinterpret_cast<struct HeaderSlot*>(msg_base)->mem_addr
+                                    = remote_mr_addr + mr_offset + sizeof(struct HeaderSlot);
+
+                                reinterpret_cast<struct HeaderSlot*>(msg_base)->key_addr
+                                    = remote_mr_addr + mr_offset + sizeof(struct HeaderSlot) 
+                                        + (local_slot->header.key_addr - local_slot->header.mem_addr);
+
+                                // std::atomic_thread_fence(std::memory_order_release);
+
+                                if (rdmaPost(
+                                        IBV_WR_RDMA_WRITE, 
+                                        qps[nid],                   // Local Replicator's Queue Pair
+                                        msg_base,                   // Local buffer address
+                                        (sizeof(struct HeaderSlot) 
+                                            + local_slot->header.mem_size + sizeof(struct SlotCanary)),              
+                                                                    // Buffer size
+                                        wrkr_mr->lkey,              // Local MR LKey
+                                        remote_mr_addr + mr_offset,
+                                                                    // Remote's address
+                                        mrs[nid]->rkey              // Remotes RKey
+                                        )
+                                    != 0)
+                                    SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Write failed.", arg_hdl);
+
+                                // Wait until the RDMA write is finished.
+                                if (waitSingleSCqe(qps[nid]) == -1)
+                                    SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Write failed. (CQ)", arg_hdl);;
+                            }
+
+                            mr_offset += (sizeof(struct HeaderSlot) + local_slot->header.mem_size + sizeof(struct SlotCanary));
+                            mr_linfree = BUF_SIZE - mr_offset;
+
+                            log_stat->offset = mr_offset;
+                            log_stat->n_prop = n_prop;
+
+                            //
+                            // Reset the MR.
+                            std::memset(
+                                reinterpret_cast<void*>(msg_base), 
+                                0, (sizeof(struct HeaderSlot) + local_slot->header.mem_size + sizeof(struct SlotCanary)));
+
+                            arg_slots[curproc_idx].ready = false;
+                            arg_slots[MAX_NSLOTS - 1].procs += 1;
+
+                            curproc_idx = (curproc_idx == (MAX_NSLOTS - 1)) ? 0 : curproc_idx + 1;
+
+                            local_slot->footprint = FOOTPRINT_REPLICATED;   // Mark as invalid. 
                         }
 
-                        arg_sig.store(SIG_READY);
-                        // SOREN_LOGGER_INFO(worker_logger, "Set SIG_READY");
+                        arg_wrkr_inst.wrk_sig.store(SIG_READY);
                 }
             }          
                 
             return 0;
         }, 
-            std::ref(wrkr_inst.wrk_sig), 
-            std::ref(wrkr_inst.next_free_sidx), 
-            std::ref(wrkr_inst.finn_proc_sidx), 
+            std::ref(workers.at(handle)), 
             wrkr_inst.wrkspace, 
             handle,
             std::ref(dep_checker),                  // Dependency checker, local member.
@@ -622,11 +585,14 @@ void soren::Replicator::doPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_
     // Set the local buffer, and let the worker handle the slot.
     // Since this is the only place that next_free_sidx is increased atomically, no overwrites to
     // the others' slots will happen.
+
     workspace[slot_idx].header.mem_addr     = reinterpret_cast<uintptr_t>(arg_memaddr);
     workspace[slot_idx].header.mem_size     = arg_memsz;
     workspace[slot_idx].header.key_addr     = reinterpret_cast<uintptr_t>(arg_keypref);
     workspace[slot_idx].header.key_size     = arg_keysz;
 
+    //
+    // Insert to the dependency-checking hash table.
     dep_checker.doTryInsert(&workspace[slot_idx], arg_keypref, arg_memsz);
 
     workspace[slot_idx].ready               = true;
@@ -646,6 +612,4 @@ void soren::Replicator::doPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_
 
         workers.at(owner_hdl).next_free_sidx.store(0);
     }
-
-    // SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Finished idx: {}, processed: {}", slot_idx, workspace[MAX_NSLOTS - 1].procs);
 }

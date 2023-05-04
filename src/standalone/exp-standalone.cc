@@ -87,8 +87,6 @@ int main(int argc, char *argv[]) {
     soren::dumpElapsedTimes();
     soren::cleanSoren();
 
-
-
     std::cout <<"Exit.\n";
     
     return 0;

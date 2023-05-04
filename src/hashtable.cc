@@ -187,6 +187,11 @@ bool soren::hash::LfHashTable::__elemSearch(
         
         if (!IS_MARKED_AS_DELETED(curr_next)) {
             if (!IS_SAME_BASEREF(prev_next, curr)) {
+                //
+                // Mod: Deleted one line.
+                //  This modification do not clean up the deleted-marked elements.
+                //  It just leaves there.
+                //
                 // CAS(&(prev->next_slot), prev_next, GET_SAME_MARK(curr, prev_next));
             }
 
