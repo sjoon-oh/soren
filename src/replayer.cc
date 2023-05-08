@@ -283,8 +283,17 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Repli
                                 if (header->owner == arg_nid) {
                                     arg_replicator->doPropose(
                                         reinterpret_cast<uint8_t*>(header->mem_addr), header->mem_size,
-                                        reinterpret_cast<uint8_t*>(header->key_addr), header->key_size
-                                    );
+                                        reinterpret_cast<uint8_t*>(header->key_addr), header->key_size,
+                                        REQTYPE_DEPCHECK_ACK
+                                    );  // Send perspective
+
+                                } else {
+
+                                    if (header->reqs.req_type == REQTYPE_DEPCHECK_ACK)
+                                        arg_replicator->doReleaseWait(
+                                            reinterpret_cast<uint8_t*>(header->mem_addr), header->mem_size,
+                                            reinterpret_cast<uint8_t*>(header->key_addr), header->key_size, slot_canary
+                                        );
                                 }
 
                                 //

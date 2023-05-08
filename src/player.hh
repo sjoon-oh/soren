@@ -31,7 +31,7 @@ namespace soren {
     const int MAX_REPLICATOR_WORKER = MAX_NWORKER / 2;
     const int MAX_REPLAYER_WORKER = MAX_NWORKER;
 
-    const int MAX_NSLOTS    = 256;
+    const int MAX_NSLOTS    = 512;
 
     enum {
         SIG_PAUSE       = 0x00,

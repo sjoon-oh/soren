@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
 
     const size_t DEFAULT_BUFSZ = 2147483648;
     
-    size_t NUM_REQUESTS = DEFAULT_BUFSZ / (80 + PAYLOAD_SZ); // Give some space
+    size_t NUM_REQUESTS = DEFAULT_BUFSZ / (120 + PAYLOAD_SZ); // Give some space
     // NUM_REQUESTS = 1000000; 
 
     std::cout << "Requests: " << NUM_REQUESTS << std::endl;
@@ -67,17 +67,18 @@ int main(int argc, char *argv[]) {
         soren::__MARK_TS_BEFORE__();
         soren::getReplicator()->doPropose(
             reinterpret_cast<uint8_t*>(local_buffer.buffer), PAYLOAD_SZ,
-            reinterpret_cast<uint8_t*>(local_buffer.buffer), KEY_SZ
+            reinterpret_cast<uint8_t*>(local_buffer.buffer), KEY_SZ,
+            soren::REQTYPE_REPLICATE
         );
         soren::__MARK_TS_AFTER__(nth_req);
 
-        if (nth_req % 1000 == 0)
+        if (nth_req % 10000 == 0)
             std::cout << "\rIteration: " << nth_req << std::flush;
     }
 
     std::cout << "\n";
 
-    for (int sec = 300; sec > 0; sec--) {
+    for (int sec = 120; sec > 0; sec--) {
         std::cout <<"\rWaiting for: " << sec << " sec" << std::flush;
         sleep(1);
     }

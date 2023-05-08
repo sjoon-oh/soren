@@ -382,7 +382,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                             uintptr_t remote_mr_addr;
 
                             LocalSlot* local_slot       = &(arg_slots[curproc_idx]);
-                            SlotCanary slot_canary      = { .canary = rnd_canary };
+                            SlotCanary slot_canary;
 
                             //
                             // 0. Before doing anything, check first whether it is deleted or not.                                
@@ -418,7 +418,8 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                             SOREN_LOGGER_INFO(worker_logger, "DepCheck ended for current processing index: ({})", curproc_idx);
 
                             local_slot->header.n_prop   = n_prop;
-                            local_slot->header.canary   = rnd_canary;
+                            local_slot->header.canary   = local_slot->hashed_key;
+                            slot_canary.canary          = local_slot->hashed_key;
 
                             //
                             // 1. Alignment : 64 byte aligned by default.
@@ -437,6 +438,11 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                                 reinterpret_cast<void*>(&(local_slot->header)),
                                 sizeof(struct HeaderSlot)
                             );
+
+                            if (local_slot->header.owner == arg_nid) // Skip if the ownwer is this machine.
+                                local_slot->header.reqs.req_type = REQTYPE_REPLICATE; 
+                            else 
+                                local_slot->header.reqs.req_type = REQTYPE_DEPCHECK_WAIT;
 
                             //
                             // 3. Fetch to the local memory region.
@@ -493,7 +499,16 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
 
                                 // Wait until the RDMA write is finished.
                                 if (waitSingleSCqe(qps[nid]) == -1)
-                                    SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Write failed. (CQ)", arg_hdl);;
+                                    SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Write failed. (CQ)", arg_hdl);
+                            }
+
+                            // Wait until the mark gets ACKed.
+
+                            if (local_slot->header.reqs.req_type == REQTYPE_DEPCHECK_WAIT) {
+                                SOREN_LOGGER_ERROR(worker_logger, "Waiting depcheck for slot... {}", curproc_idx);
+                                while (local_slot->header.reqs.req_type == REQTYPE_REPLICATE)
+                                    ;
+                                SOREN_LOGGER_ERROR(worker_logger, "Replayer received identical hash for slot: {}", curproc_idx);
                             }
 
                             mr_offset += (sizeof(struct HeaderSlot) + local_slot->header.mem_size + sizeof(struct SlotCanary));
@@ -548,17 +563,19 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
 /// @param arg_addr 
 /// @param arg_size 
 /// @param arg_keypref 
-void soren::Replicator::doPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_t* arg_keypref, size_t arg_keysz) {
+void soren::Replicator::doPropose(
+    uint8_t* arg_memaddr, size_t arg_memsz, 
+    uint8_t* arg_keypref, size_t arg_keysz, uint8_t arg_reqtype) {
 
     // Here eveything will be replicated.
     // Sub partition can 8 max.
     uint32_t owner_hdl = 0;
-    uint16_t keyval = 0;
+    uint32_t keyval = 0;
 
-    if (arg_keysz < sizeof(uint16_t))
+    if (arg_keysz < sizeof(uint32_t))
         keyval = static_cast<char>(*arg_keypref);
     else
-        keyval = static_cast<uint16_t>(*arg_keypref);
+        keyval = static_cast<uint32_t>(*arg_keypref);
 
     if (sub_par > 1)
         owner_hdl = keyval % sub_par;
@@ -569,8 +586,6 @@ void soren::Replicator::doPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_
     uint32_t slot_idx;
     while ((slot_idx = workers.at(owner_hdl).next_free_sidx.fetch_add(1)) >= MAX_NSLOTS)
         ;   // Wait until an empty seat is there.
-
-    SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "doPropose idx: {}", slot_idx);
 
     //
     // Working with slots:
@@ -586,24 +601,29 @@ void soren::Replicator::doPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_
     // Since this is the only place that next_free_sidx is increased atomically, no overwrites to
     // the others' slots will happen.
 
-    workspace[slot_idx].header.mem_addr     = reinterpret_cast<uintptr_t>(arg_memaddr);
-    workspace[slot_idx].header.mem_size     = arg_memsz;
-    workspace[slot_idx].header.key_addr     = reinterpret_cast<uintptr_t>(arg_keypref);
-    workspace[slot_idx].header.key_size     = arg_keysz;
+    workspace[slot_idx].header.mem_addr         = reinterpret_cast<uintptr_t>(arg_memaddr);
+    workspace[slot_idx].header.mem_size         = arg_memsz;
+    workspace[slot_idx].header.key_addr         = reinterpret_cast<uintptr_t>(arg_keypref);
+    workspace[slot_idx].header.key_size         = arg_keysz;
+
+    workspace[slot_idx].header.reqs.req_type    = arg_reqtype;
+
+    workspace[slot_idx].header.owner = 1;
 
     //
     // Insert to the dependency-checking hash table.
     dep_checker.doTryInsert(&workspace[slot_idx], arg_keypref, arg_memsz);
 
-    workspace[slot_idx].ready               = true;
+    workspace[slot_idx].ready                   = true;
 
-    SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Waiting for idx: {}", slot_idx);
-
-    while (workspace[slot_idx].footprint != FOOTPRINT_REPLICATED)
-        ;
+    if (arg_reqtype == REQTYPE_REPLICATE) {
+        SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "PRPOPSE: Waiting for idx: {}", slot_idx);
+        while (workspace[slot_idx].footprint != FOOTPRINT_REPLICATED)
+            ;
+        SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "PRPOPSE: Wait done for idx: {}", slot_idx);
+    }
 
     if (slot_idx == (MAX_NSLOTS - 1)) {
-
         while (workspace[MAX_NSLOTS - 1].procs != MAX_NSLOTS)
             ;
 
@@ -612,4 +632,51 @@ void soren::Replicator::doPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_
 
         workers.at(owner_hdl).next_free_sidx.store(0);
     }
+}
+
+
+
+void soren::Replicator::doReleaseWait(
+    uint8_t* arg_memaddr, size_t arg_memsz, 
+    uint8_t* arg_keypref, size_t arg_keysz, uint32_t arg_hashval) {
+
+    // Here eveything will be replicated.
+    // Sub partition can 8 max.
+    uint32_t owner_hdl = 0;
+    uint32_t keyval = 0;
+
+    if (arg_keysz < sizeof(uint32_t))
+        keyval = static_cast<char>(*arg_keypref);
+    else
+        keyval = static_cast<uint32_t>(*arg_keypref);
+
+    if (sub_par > 1)
+        owner_hdl = keyval % sub_par;
+    else
+        ;
+
+    LocalSlot* workspace = workers.at(owner_hdl).wrkspace;
+    int pending_sidx = -1;
+
+    for (int idx = (MAX_NSLOTS - 1); idx >= 0; idx--) {
+
+        if ((workspace[idx].hashed_key == arg_hashval)
+            && (workspace[idx].footprint != FOOTPRINT_REPLICATED)) {
+            pending_sidx = idx;
+            break;
+        }
+    }
+    
+    // SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Found: {}", pending_sidx);
+    if (pending_sidx = -1) {
+
+        // Case when received ACK, but not proposed by this node. 
+        // In this case, do nothing.
+        return;
+    }
+
+    // Release
+    workspace[pending_sidx].header.reqs.req_type = REQTYPE_REPLICATE;
+
+    SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Wait released for idx: {}", pending_sidx);
 }

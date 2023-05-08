@@ -19,6 +19,12 @@ namespace soren {
         FOOTPRINT_READY         = 0x4f,
     };
 
+    enum {
+        REQTYPE_DEPCHECK_WAIT   = 0x4,
+        REQTYPE_DEPCHECK_ACK    = 0xa,
+        REQTYPE_REPLICATE       = 0xc
+    };
+
     struct __attribute__((packed)) LogStat {
         uint32_t    n_prop;                     // Current proposal number
         uint32_t    offset;                     // MR buffer offset.
@@ -27,10 +33,7 @@ namespace soren {
     };
 
     struct __attribute__((packed)) RequestSlot {
-        uint8_t     req_a;
-        uint8_t     req_b;
-        uint8_t     req_c;
-        uint8_t     req_d;
+        uint8_t     req_type;
     };
 
     struct __attribute__((packed)) HeaderSlot {
@@ -41,7 +44,7 @@ namespace soren {
         uintptr_t               key_addr;
         uint16_t                key_size;
         uint16_t                owner;          // Who owns this key?
-        int32_t                 canary;
+        uint32_t                canary;
     };
 
     struct LocalSlot {
@@ -57,7 +60,7 @@ namespace soren {
     };
 
     struct __attribute__((packed)) SlotCanary {
-        int32_t    canary;
+        uint32_t            canary;
     };
 
     const bool isSlotValid(HeaderSlot&, uint32_t);
