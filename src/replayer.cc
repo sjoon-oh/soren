@@ -289,11 +289,11 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Repli
 
                                 } else {
 
-                                    if (header->reqs.req_type == REQTYPE_DEPCHECK_ACK)
-                                        arg_replicator->doReleaseWait(
-                                            reinterpret_cast<uint8_t*>(header->mem_addr), header->mem_size,
-                                            reinterpret_cast<uint8_t*>(header->key_addr), header->key_size, slot_canary
-                                        );
+                                    // if (header->reqs.req_type == REQTYPE_DEPCHECK_ACK)
+                                    arg_replicator->doReleaseWait(
+                                        reinterpret_cast<uint8_t*>(header->mem_addr), header->mem_size,
+                                        reinterpret_cast<uint8_t*>(header->key_addr), header->key_size, slot_canary
+                                    );
                                 }
 
                                 //

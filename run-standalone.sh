@@ -16,7 +16,7 @@ wait
 
 key_sz=16
 payload_sz=(32 50 64 128 256 512)
-payload_sz=(128)
+payload_sz=(64)
 
 # for psz in ${payload_sz[@]}
 # do
@@ -30,7 +30,7 @@ payload_sz=(128)
 
 
 echo "Standalone test for payload size 128"
-./build/soren-standalone.demo 128 16
+./build/soren-standalone.demo 64 16
 wait
 
 dump_file="soren-st-pl128-k16-$(date '+%y.%m.%d-%H:%M').txt"

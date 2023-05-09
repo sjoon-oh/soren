@@ -658,7 +658,8 @@ void soren::Replicator::doReleaseWait(
     LocalSlot* workspace = workers.at(owner_hdl).wrkspace;
     int pending_sidx = -1;
 
-    for (int idx = (MAX_NSLOTS - 1); idx >= 0; idx--) {
+    for (int idx = workspace[MAX_NSLOTS - 1].procs; idx < MAX_NSLOTS; idx++) {
+    // for (int idx = (MAX_NSLOTS - 1); idx >= 0; idx--) {
 
         if ((workspace[idx].hashed_key == arg_hashval)
             && (workspace[idx].footprint != FOOTPRINT_REPLICATED)) {
@@ -667,7 +668,6 @@ void soren::Replicator::doReleaseWait(
         }
     }
     
-    // SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Found: {}", pending_sidx);
     if (pending_sidx = -1) {
 
         // Case when received ACK, but not proposed by this node. 
