@@ -15,8 +15,8 @@ mkdir logs
 wait
 
 key_sz=16
-payload_sz=(32 50 64 128 256 512)
-payload_sz=(64)
+# payload_sz=(32 50 64 128 256 512)
+payload_sz=512
 
 # for psz in ${payload_sz[@]}
 # do
@@ -29,11 +29,11 @@ payload_sz=(64)
 # done
 
 
-echo "Standalone test for payload size 128"
-./build/soren-standalone.demo 64 16
+echo "Standalone test for payload size ${payload_sz}"
+./build/soren-standalone.demo ${payload_sz} 16
 wait
 
-dump_file="soren-st-pl128-k16-$(date '+%y.%m.%d-%H:%M').txt"
+dump_file="soren-st-pl${payload_sz}-k16-$(date '+%y.%m.%d-%H:%M').txt"
 mv soren-dump.txt dumps/${dump_file}
 
 mv *.log ./logs
