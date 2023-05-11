@@ -70,7 +70,7 @@ void soren::dumpElapsedTimes() {
     dump_file.close();
 
     for (int idx = 0; idx < glob_ntimestamps; idx++)
-        GLOB_TS_ELAPSED[idx] = ELAPSED_NSEC(GLOB_TS_BEFORE[idx], GLOB_TS_AFTER[0]);
+        GLOB_TS_ELAPSED[idx] = ELAPSED_NSEC(GLOB_TS_BEFORE[0], GLOB_TS_AFTER[idx]);
 
     dump_file.open("soren-dump-live.txt");
 
