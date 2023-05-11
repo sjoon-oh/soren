@@ -44,5 +44,6 @@ mv *.json ./logs
 
 cd dumps
 python3 analysis.py
+python3 analysis-live.py
 
 echo "***** Script finished successfully. *****"

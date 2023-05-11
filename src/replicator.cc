@@ -383,6 +383,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
 
                             LocalSlot* local_slot       = &(arg_slots[curproc_idx]);
                             SlotCanary slot_canary;
+                            uint32_t hashed_key;
 
                             //
                             // 0. Before doing anything, check first whether it is deleted or not.                                
@@ -419,7 +420,11 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
 
                             local_slot->header.n_prop   = n_prop;
                             local_slot->header.canary   = local_slot->hashed_key;
-                            slot_canary.canary          = local_slot->hashed_key;
+                            slot_canary.canary          = local_slot->hashed_key
+                                                            + local_slot->header.mem_size
+                                                            + local_slot->header.key_size
+                                                            + local_slot->header.n_prop;
+                            hashed_key                  = local_slot->hashed_key;
 
                             //
                             // 1. Alignment : 64 byte aligned by default.
@@ -509,8 +514,8 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                             // Wait until the mark gets ACKed.
 
                             if (local_slot->header.reqs.req_type == REQTYPE_DEPCHECK_WAIT) {
-                                SOREN_LOGGER_ERROR(worker_logger, "Waiting depcheck for slot... {}", curproc_idx);
-                                while (local_slot->header.reqs.req_type == REQTYPE_REPLICATE)
+                                SOREN_LOGGER_ERROR(worker_logger, "Waiting depcheck for slot... {}, hash: {}", curproc_idx, hashed_key);
+                                while (local_slot->header.reqs.req_type != REQTYPE_REPLICATE)
                                     ;
                                 SOREN_LOGGER_ERROR(worker_logger, "Replayer received identical hash for slot: {}", curproc_idx);
                             }
@@ -621,7 +626,7 @@ void soren::Replicator::doPropose(
     workspace[slot_idx].ready                   = true;
 
     if (arg_reqtype == REQTYPE_REPLICATE) {
-        SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "PRPOPSE: Waiting for idx: {}", slot_idx);
+        SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "PRPOPSE: Waiting for idx: {}, hash: {}", slot_idx, workspace[slot_idx].hashed_key);
         while (workspace[slot_idx].footprint != FOOTPRINT_REPLICATED)
             ;
         SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "PRPOPSE: Wait done for idx: {}", slot_idx);
@@ -665,14 +670,17 @@ void soren::Replicator::doReleaseWait(
     for (int idx = workspace[MAX_NSLOTS - 1].procs; idx < MAX_NSLOTS; idx++) {
     // for (int idx = (MAX_NSLOTS - 1); idx >= 0; idx--) {
 
+        // SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Scanning idx: {}", idx);
+
         if ((workspace[idx].hashed_key == arg_hashval)
             && (workspace[idx].footprint != FOOTPRINT_REPLICATED)) {
+            SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Scan found idx: {}", idx);
             pending_sidx = idx;
             break;
         }
     }
     
-    if (pending_sidx = -1) {
+    if (pending_sidx == -1) {
 
         // Case when received ACK, but not proposed by this node. 
         // In this case, do nothing.

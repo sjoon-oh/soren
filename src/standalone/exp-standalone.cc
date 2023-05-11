@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
     const size_t DEFAULT_BUFSZ = 2147483648;
     
     size_t NUM_REQUESTS = DEFAULT_BUFSZ / (120 + PAYLOAD_SZ); // Give some space
-    // NUM_REQUESTS = 1000000; 
+    // NUM_REQUESTS = 10000; 
 
     std::cout << "Requests: " << NUM_REQUESTS << std::endl;
     // const int NUM_REQUESTS = 4096;
@@ -58,6 +58,8 @@ int main(int argc, char *argv[]) {
     soren::initTimestamps(NUM_REQUESTS);
     soren::initSoren(10, 1);
 
+    std::cout << "Standalone test start.\n";
+
     for (size_t nth_req = 0; nth_req < NUM_REQUESTS; nth_req++) {
 
         // Randomize the payload.
@@ -72,13 +74,13 @@ int main(int argc, char *argv[]) {
         );
         soren::__MARK_TS_AFTER__(nth_req);
 
-        // if (nth_req % 10000 == 0)
-        //     std::cout << "\rIteration: " << nth_req << std::flush;
+        if (nth_req % 10000 == 0)
+            std::cout << "\rIteration: " << nth_req << std::flush;
     }
 
     std::cout << "\n";
 
-    for (int sec = 240; sec > 0; sec--) {
+    for (int sec = 300; sec > 0; sec--) {
         std::cout <<"\rWaiting for: " << sec << " sec     " << std::flush;
         sleep(1);
     }
