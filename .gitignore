@@ -46,6 +46,8 @@ logs/post-all-conf.json
 *.txt
 
 dumps/*.txt
+dumps/dumps-1/*.txt
+dumps/dumps-2/*.txt
 
 logs/soren*log
 
