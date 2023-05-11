@@ -72,14 +72,14 @@ int main(int argc, char *argv[]) {
         );
         soren::__MARK_TS_AFTER__(nth_req);
 
-        if (nth_req % 10000 == 0)
-            std::cout << "\rIteration: " << nth_req << std::flush;
+        // if (nth_req % 10000 == 0)
+        //     std::cout << "\rIteration: " << nth_req << std::flush;
     }
 
     std::cout << "\n";
 
-    for (int sec = 120; sec > 0; sec--) {
-        std::cout <<"\rWaiting for: " << sec << " sec" << std::flush;
+    for (int sec = 240; sec > 0; sec--) {
+        std::cout <<"\rWaiting for: " << sec << " sec     " << std::flush;
         sleep(1);
     }
 

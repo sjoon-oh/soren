@@ -467,6 +467,10 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                             // 5. Replicate the data to remotes.
                             for (int nid = 0; nid < arg_npl; nid++) {
                                 if (nid == arg_nid) continue;
+                                if (local_slot->header.reqs.req_type == REQTYPE_DEPCHECK_WAIT) {
+                                    if (local_slot->header.owner != nid)
+                                        continue;
+                                }
                                 
                                 //
                                 // Update to per-remote contents. Currently the header section (of MR) holds
