@@ -30,12 +30,44 @@ soren::DependencyChecker::DependencyChecker(uint32_t arg_nelem, compfunc_t arg_c
 
 
 
+uint32_t soren::DependencyChecker::doHash(const void* arg_buf, int arg_len) {
+    return hash_table.doHash(arg_buf, arg_len);
+}
+
+
+
 void soren::DependencyChecker::doTryInsert(LocalSlot* arg_slot, const void* arg_buf, int arg_len) {
 
     bool is_samekey, is_success;
     LocalSlot *prev, *next;
 
     arg_slot->hashed_key = hash_table.doHash(arg_buf, arg_len);
+    GET_TIMESTAMP((arg_slot->timestamp));
+
+    while(is_deleting.at(arg_slot->hashed_key % HASHTABLE_NBUCKETS).load() == true)
+        ;
+
+    do {
+        is_samekey = hash_table.doSearch(arg_slot->hashed_key, arg_slot, &prev, &next);
+
+        if (!is_samekey)
+            is_success = hash_table.doInsert(arg_slot, prev, next);
+        else
+            is_success = hash_table.doSwitch(arg_slot, prev, next);
+
+    } while(!is_success);
+
+    // Debug
+    // printBucket(hash_table.getBucket(arg_slot->hashed_key));
+}
+
+
+
+void soren::DependencyChecker::doTryInsert(LocalSlot* arg_slot) {
+
+    bool is_samekey, is_success;
+    LocalSlot *prev, *next;
+
     GET_TIMESTAMP((arg_slot->timestamp));
 
     while(is_deleting.at(arg_slot->hashed_key % HASHTABLE_NBUCKETS).load() == true)

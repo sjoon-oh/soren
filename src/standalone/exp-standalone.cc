@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
     std::mt19937 generator(random_device());
 
     soren::initTimestamps(NUM_REQUESTS);
-    soren::initSoren(10, 1);
+    soren::initSoren(10, 2);
 
     std::cout << "Standalone test start.\n";
 
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
 
     std::cout << "\n";
 
-    for (int sec = 300; sec > 0; sec--) {
+    for (int sec = 150; sec > 0; sec--) {
         std::cout <<"\rWaiting for: " << sec << " sec     " << std::flush;
         sleep(1);
     }

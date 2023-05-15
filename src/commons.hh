@@ -22,7 +22,8 @@ namespace soren {
     enum {
         REQTYPE_DEPCHECK_WAIT   = 0x4,
         REQTYPE_DEPCHECK_ACK    = 0xa,
-        REQTYPE_REPLICATE       = 0xc
+        REQTYPE_REPLICATE       = 0xc,
+        REQTYPE_SKIP            = 0xf
     };
 
     struct __attribute__((packed)) LogStat {

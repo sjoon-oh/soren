@@ -199,8 +199,8 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Repli
             log_stat->n_prop = n_prop;
 
             SOREN_LOGGER_INFO(worker_logger, 
-                "Replayer({}) initiated:\n- MR({})\n- offset({}), prop({})", 
-                arg_hdl, wrkr_mr_id, (uint32_t)log_stat->offset, (uint32_t)log_stat->n_prop);
+                "Replayer({}) initiated:\n- MR({})\n- offset({}), prop({})\n- addr: ({})", 
+                arg_hdl, wrkr_mr_id, (uint32_t)log_stat->offset, (uint32_t)log_stat->n_prop, (uintptr_t)wrkr_mr->addr);
 
             // 
             // Worker handle also represents corresponding sub-partition. 
@@ -272,14 +272,16 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Repli
                             //     "Expected Prop({}): \n- header prop: ({}), size: {}\n- canary header/end: ({})/({})", 
                             //     n_prop + 1, (uint32_t)header->n_prop, (uint32_t)header->size, header_canary, slot_canary);
 
+                            // SOREN_LOGGER_INFO(worker_logger, "Alive");
+
                             if ((calc_canary == slot_canary) && (received_prop > n_prop)) {
 
                                 if ((header->mem_addr == 0) || (header->mem_size == 0) ||
                                         (header->key_addr == 0) || (header->key_size == 0))
                                     continue;
-                                
+
                                 if (header->owner == arg_nid) {
-                                    SOREN_LOGGER_INFO(worker_logger, "Mine! Response(propose) for header: {}, canary: {}, prop: {}", header_canary, slot_canary, n_prop);
+                                    SOREN_LOGGER_INFO(worker_logger, "Mine! Response(propose) for hash: {}, canary: {}, prop: {}", header_canary, calc_canary, n_prop);
                                     
                                     arg_replicator->doPropose(
                                         reinterpret_cast<uint8_t*>(header->mem_addr), header->mem_size,
@@ -289,13 +291,19 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Repli
 
                                 } else {
 
-                                    if (header->reqs.req_type == REQTYPE_DEPCHECK_ACK) {
-                                        SOREN_LOGGER_INFO(worker_logger, "Release called for hash {}", header_canary);
+                                    // if (header->reqs.req_type == REQTYPE_DEPCHECK_ACK) {
+
+                                    if (header->reqs.req_type != REQTYPE_DEPCHECK_WAIT) {
+
+                                        SOREN_LOGGER_INFO(worker_logger, "Received! {}", header_canary);
                                         arg_replicator->doReleaseWait(
                                             reinterpret_cast<uint8_t*>(header->mem_addr), header->mem_size,
                                             reinterpret_cast<uint8_t*>(header->key_addr), header->key_size, header_canary
                                         );
                                     }
+                                    else
+                                        SOREN_LOGGER_INFO(worker_logger, "Seems others are waiting for ACK: {}", header_canary);
+                                    // }
                                 }
 
                                 //
@@ -323,6 +331,9 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Repli
                             // 4. Set the next aligned offset.
                             prepareNextAlignedOffset(
                                 mr_offset, mr_linfree, header->mem_size);
+
+                            log_stat->offset = mr_offset;
+                            log_stat->n_prop = n_prop;
                         }
                         
                         break;

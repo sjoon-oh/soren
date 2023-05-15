@@ -31,7 +31,7 @@
 // Refer to each source file for more info.
 namespace soren {
 
-    void initSoren(uint32_t = 10, uint32_t = 1);    // Initialize Soren.
+    void initSoren(uint32_t = 10, uint32_t = 2);    // Initialize Soren.
     void cleanSoren();                              // Clean up all the resources Soren consumed.
 
     Connector*  getConnector();                     // Access global Connector

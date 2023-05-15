@@ -136,7 +136,7 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
                 //
 
                 INST_REPLICATOR->doAddRemoteMr(             
-                    GET_MR_GLOBAL(nid, sp), 
+                    REMOTE_REPLAYER_MR_2_LOCAL(GET_MR_GLOBAL(nid, sp), nid, sp), 
                     soren::hbwrapper::getRemoteMinimalMr(
                         nid, soren::COMMON_PD, GET_MR_GLOBAL(glob_node_id, sp)
                     )

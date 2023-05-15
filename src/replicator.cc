@@ -80,7 +80,7 @@ int soren::Replicator::__findNeighborAliveWorkerHandle(uint32_t arg_hdl) {
 /// @param arg_players 
 /// @param arg_ranger 
 /// @param arg_subpar 
-soren::Replicator::Replicator(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_ranger = 10, uint32_t arg_subpar = 1)
+soren::Replicator::Replicator(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_ranger = 10, uint32_t arg_subpar = 2)
     : node_id(arg_nid), nplayers(arg_players), ranger(arg_ranger), sub_par(arg_subpar) {
         if (arg_subpar > MAX_SUBPAR)
             sub_par = MAX_SUBPAR;
@@ -239,7 +239,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
             struct ibv_qp** qps     = new struct ibv_qp*[arg_npl]; 
             struct ibv_mr** mrs     = new struct ibv_mr*[arg_npl]; // Holds remote mrs.
 
-            SOREN_LOGGER_INFO(worker_logger, "Replicator({}) initiated.", arg_hdl);
+            SOREN_LOGGER_INFO(worker_logger, "Replicator({}) initiated, sp: {}", arg_hdl, arg_current_sp);
 
             //
             // For each node ID, register the remote MR information and corresponding local
@@ -253,7 +253,12 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
 
                 } else {
                     qps[nid] = arg_qp_hdls.find(GET_QP_REPLICATOR(arg_nid, nid, arg_current_sp))->second;
-                    mrs[nid] = arg_mr_hdls.find(GET_MR_GLOBAL(nid, arg_current_sp))->second;
+                    // mrs[nid] = arg_mr_hdls.find(GET_MR_GLOBAL(arg_nid, arg_current_sp))->second;
+                    mrs[nid] = arg_mr_hdls.find(
+                        REMOTE_REPLAYER_MR_2_LOCAL(GET_MR_GLOBAL(nid, arg_current_sp), nid, arg_current_sp))->second;
+
+                    // SOREN_LOGGER_INFO(worker_logger, "Replicator({}) registered remote MR ({}), converted MR: {}, addr: {}", arg_hdl, 
+                    //     GET_MR_GLOBAL(arg_nid, arg_current_sp), REMOTE_REPLAYER_MR_2_LOCAL(GET_MR_GLOBAL(nid, arg_current_sp), nid, arg_current_sp), (uintptr_t)mrs[nid]->addr);
                 }
             }
 
@@ -323,6 +328,8 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                                         // (that calls doPropose() which waits for its request to finish).
                                         // The finished slot index (finn_proc_sidx) is only exposed to the
                                         // spawner.
+
+            uint32_t owner;
             
             std::srand(std::time(nullptr));
 
@@ -416,7 +423,7 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                                 continue;
                             }
 
-                            SOREN_LOGGER_INFO(worker_logger, "DepCheck ended for current processing index: ({})", curproc_idx);
+                            // SOREN_LOGGER_INFO(worker_logger, "DepCheck ended for current processing index: ({})", curproc_idx);
 
                             local_slot->header.n_prop   = n_prop;
                             local_slot->header.canary   = local_slot->hashed_key;
@@ -430,10 +437,10 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                             // 1. Alignment : 64 byte aligned by default.
                             prepareNextAlignedOffset(mr_offset, mr_linfree, local_slot->header.mem_size);
 
-                            SOREN_LOGGER_INFO(worker_logger, 
-                                "Replicator({}) PROPOSING...\n- current processing slot idx: {}, prop: {}\n- offset: {}, canary: {}\n- content: {}\n- proc'd: {}\n", 
-                                    arg_hdl, curproc_idx, (uint32_t)local_slot->header.n_prop, mr_offset, 
-                                    (uint32_t)local_slot->header.canary, (char*)local_slot->header.mem_addr, arg_slots[MAX_NSLOTS - 1].procs);
+                            // SOREN_LOGGER_INFO(worker_logger, 
+                            //     "Replicator({}) PROPOSING...\n- current processing slot idx: {}, prop: {}\n- offset: {}, canary: {}\n- content: {}\n- proc'd: {}\n", 
+                            //         arg_hdl, curproc_idx, (uint32_t)local_slot->header.n_prop, mr_offset, 
+                            //         (uint32_t)local_slot->header.canary, (char*)local_slot->header.mem_addr, arg_slots[MAX_NSLOTS - 1].procs);
 
                             //
                             // 2. Prepare header. 
@@ -443,6 +450,8 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                                 reinterpret_cast<void*>(&(local_slot->header)),
                                 sizeof(struct HeaderSlot)
                             );
+
+                            owner = local_slot->header.owner;
 
                             if (local_slot->header.owner == arg_nid) // Skip if the ownwer is this machine.
                                 local_slot->header.reqs.req_type = REQTYPE_REPLICATE; 
@@ -474,7 +483,8 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                                 if (nid == arg_nid) continue;
                                 if (local_slot->header.reqs.req_type == REQTYPE_DEPCHECK_WAIT) {
                                     if (local_slot->header.owner != nid)
-                                        continue;
+                                        // continue;
+                                        ;
                                 }
                                 
                                 //
@@ -514,10 +524,10 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                             // Wait until the mark gets ACKed.
 
                             if (local_slot->header.reqs.req_type == REQTYPE_DEPCHECK_WAIT) {
-                                SOREN_LOGGER_ERROR(worker_logger, "Waiting depcheck for slot... {}, hash: {}", curproc_idx, hashed_key);
+                                SOREN_LOGGER_INFO(worker_logger, "Waiting depcheck for slot {}, hash: {}, owner({})", curproc_idx, hashed_key, owner);
                                 while (local_slot->header.reqs.req_type != REQTYPE_REPLICATE)
                                     ;
-                                SOREN_LOGGER_ERROR(worker_logger, "Replayer received identical hash for slot: {}", curproc_idx);
+                                SOREN_LOGGER_INFO(worker_logger, "Received ACK for hash {} from owner({})", hashed_key, owner);
                             }
 
                             mr_offset += (sizeof(struct HeaderSlot) + local_slot->header.mem_size + sizeof(struct SlotCanary));
@@ -576,21 +586,12 @@ void soren::Replicator::doPropose(
     uint8_t* arg_memaddr, size_t arg_memsz, 
     uint8_t* arg_keypref, size_t arg_keysz, uint8_t arg_reqtype) {
 
-    // Here eveything will be replicated.
-    // Sub partition can 8 max.
-    uint32_t owner_hdl = 0;
-    uint32_t keyval = 0;
+    uint32_t owner_node = 0, owner_hdl = 0;
+    uint32_t hashed_val = dep_checker.doHash(arg_keypref, arg_keysz);
 
-    if (arg_keysz < sizeof(uint32_t))
-        keyval = static_cast<char>(*arg_keypref);
-    else
-        keyval = static_cast<uint32_t>(*arg_keypref);
-
-    if (sub_par > 1)
-        owner_hdl = keyval % sub_par;
-    else
-        ;
-
+    owner_node = hashed_val % 3;
+    // owner_node = 1;
+    owner_hdl = (owner_node == node_id) ? 0 : 1;
 
     uint32_t slot_idx;
     while ((slot_idx = workers.at(owner_hdl).next_free_sidx.fetch_add(1)) >= MAX_NSLOTS)
@@ -616,20 +617,25 @@ void soren::Replicator::doPropose(
     workspace[slot_idx].header.key_size         = arg_keysz;
 
     workspace[slot_idx].header.reqs.req_type    = arg_reqtype;
-
-    workspace[slot_idx].header.owner = 1;
+    workspace[slot_idx].hashed_key              = hashed_val;
+    workspace[slot_idx].header.owner            = owner_node;
 
     //
     // Insert to the dependency-checking hash table.
-    dep_checker.doTryInsert(&workspace[slot_idx], arg_keypref, arg_memsz);
+    // dep_checker.doTryInsert(&workspace[slot_idx], arg_keypref, arg_keysz);
+    dep_checker.doTryInsert(&workspace[slot_idx]);
 
     workspace[slot_idx].ready                   = true;
 
     if (arg_reqtype == REQTYPE_REPLICATE) {
-        SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "PRPOPSE: Waiting for idx: {}, hash: {}", slot_idx, workspace[slot_idx].hashed_key);
+        SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "doPropose: Waiting for idx: {} owned({}), hash: {}", slot_idx, owner_node, workspace[slot_idx].hashed_key);
         while (workspace[slot_idx].footprint != FOOTPRINT_REPLICATED)
             ;
-        SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "PRPOPSE: Wait done for idx: {}", slot_idx);
+        SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "doPropose: Wait done for idx: {}", slot_idx);
+    }
+    else {
+        ;
+        SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "doPropose: Sending ACK: {} owned({}), hash: {}", slot_idx, owner_node, workspace[slot_idx].hashed_key);
     }
 
     if (slot_idx == (MAX_NSLOTS - 1)) {
@@ -641,6 +647,8 @@ void soren::Replicator::doPropose(
 
         workers.at(owner_hdl).next_free_sidx.store(0);
     }
+
+    SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "doPropose: exit for {}", workspace[slot_idx].hashed_key);
 }
 
 
@@ -651,18 +659,12 @@ void soren::Replicator::doReleaseWait(
 
     // Here eveything will be replicated.
     // Sub partition can 8 max.
-    uint32_t owner_hdl = 0;
-    uint32_t keyval = 0;
+    uint32_t owner_node = 0, owner_hdl = 0;
 
-    if (arg_keysz < sizeof(uint32_t))
-        keyval = static_cast<char>(*arg_keypref);
-    else
-        keyval = static_cast<uint32_t>(*arg_keypref);
-
-    if (sub_par > 1)
-        owner_hdl = keyval % sub_par;
-    else
-        ;
+    // owner_node = arg_hashval % 3;
+    // // owner_node = 1;
+    // owner_hdl = (owner_node == node_id) ? 0 : 1;
+    owner_hdl = 1;
 
     LocalSlot* workspace = workers.at(owner_hdl).wrkspace;
     int pending_sidx = -1;
@@ -674,7 +676,7 @@ void soren::Replicator::doReleaseWait(
 
         if ((workspace[idx].hashed_key == arg_hashval)
             && (workspace[idx].footprint != FOOTPRINT_REPLICATED)) {
-            SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Scan found idx: {}", idx);
+
             pending_sidx = idx;
             break;
         }
@@ -690,5 +692,5 @@ void soren::Replicator::doReleaseWait(
     // Release
     workspace[pending_sidx].header.reqs.req_type = REQTYPE_REPLICATE;
 
-    SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Wait released for idx: {}", pending_sidx);
+    SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Wait released for hash: {}", arg_hashval);
 }

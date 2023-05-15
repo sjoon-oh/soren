@@ -33,7 +33,9 @@ namespace soren {
         ~DependencyChecker() {};
 
         // Interface 
+        uint32_t doHash(const void*, int);
         void doTryInsert(LocalSlot*, const void*, int);
+        void doTryInsert(LocalSlot*);
         void doDelete(LocalSlot*);
 
         bool doSearch(uint32_t, struct LocalSlot*, struct LocalSlot**, struct LocalSlot**);
