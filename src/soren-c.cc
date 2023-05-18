@@ -57,6 +57,8 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
 
     glob_connector = cwInitConnection(arg_subpar);
 
+    printf("Soren connection OK.\n");
+
     // Connector exchanges the network information automatically
     // in its contructor. 
     // If contstructed without any problem, you should be ready to 
@@ -78,6 +80,8 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     //  make sure that all replayers in a same node are initiated.
     glob_replicator = reinterpret_cast<soren::Replicator*>(
         new soren::Replicator(glob_node_id, glob_nplayers, glob_ranger, arg_subpar));
+
+    printf("Player instances initialized.\n");
 
     //
     // There are 2*(n-1)*subpar replayers in Soren. 
@@ -112,6 +116,8 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
                 reinterpret_cast<soren::Replayer*>(glob_replayer)->doLaunchPlayer(nid, sp, reinterpret_cast<soren::Replicator*>(glob_replicator));
         }
     }
+
+    printf("Replayer threads launched.\n");
 
     //
     // Initiate the replicator. If this node ID is 'some_id', 
@@ -152,7 +158,7 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
                 //
 
                 reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddRemoteMr(
-                    GET_MR_GLOBAL(nid, sp), 
+                    REMOTE_REPLAYER_MR_2_LOCAL(GET_MR_GLOBAL(nid, sp), nid, sp), 
                     soren::hbwrapper::getRemoteMinimalMr(
                         nid, soren::COMMON_PD, GET_MR_GLOBAL(glob_node_id, sp)
                     )
@@ -165,12 +171,16 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     // Launch the replicator threads. If this node ID is 'some_id', 
     for (int sp = 0; sp < arg_subpar; sp++)
         reinterpret_cast<soren::Replicator*>(glob_replicator)->doLaunchPlayer(glob_nplayers, sp);
+
+    printf("Replicator threads launched.\n");
+    
+    printf("Soren initialized.\n");
 }
 
 void cwPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_t* arg_keypref, size_t arg_keysz) {
 
     reinterpret_cast<soren::Replicator*>(glob_replicator)->doPropose(
-        arg_memaddr, arg_memsz, arg_keypref, arg_keysz
+        arg_memaddr, arg_memsz, arg_keypref, arg_keysz, soren::REQTYPE_REPLICATE
     );
 }
 

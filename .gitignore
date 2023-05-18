@@ -46,6 +46,7 @@ logs/post-all-conf.json
 *.txt
 
 dumps/*.txt
+dumps/*.graph
 dumps/dumps-1/*.txt
 dumps/dumps-2/*.txt
 
