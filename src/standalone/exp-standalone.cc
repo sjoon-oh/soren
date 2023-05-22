@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
         soren::getReplicator()->doPropose(
             reinterpret_cast<uint8_t*>(local_buffer.buffer), PAYLOAD_SZ,
             reinterpret_cast<uint8_t*>(local_buffer.buffer), KEY_SZ,
-            soren::REQTYPE_REPLICATE
+            0, soren::REQTYPE_REPLICATE
         );
         soren::__MARK_TS_AFTER__(nth_req);
 

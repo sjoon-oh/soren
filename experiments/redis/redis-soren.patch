@@ -1,0 +1,36 @@
+--- src/server-orig.c	2023-05-22 10:55:51.570419009 +0900
++++ src/server.c	2023-05-22 11:00:10.338422179 +0900
+@@ -66,6 +66,10 @@
+ #include <sys/mman.h>
+ #endif
+ 
++// Memcached-Soren
++// Author: sjoon@kaist.ac.kr
++#include "../../../../src/soren-c.h"
++
+ #if defined(HAVE_SYSCTL_KIPC_SOMAXCONN) || defined(HAVE_SYSCTL_KERN_SOMAXCONN)
+ #include <sys/sysctl.h>
+ #endif
+@@ -4016,6 +4020,8 @@
+ int prepareForShutdown(int flags) {
+     if (isShutdownInitiated()) return C_ERR;
+ 
++    cwCleanSoren();
++
+     /* When SHUTDOWN is called while the server is loading a dataset in
+      * memory we need to make sure no attempt is performed to save
+      * the dataset on shutdown (otherwise it could overwrite the current DB
+@@ -6780,6 +6786,13 @@
+     int j;
+     char config_from_stdin = 0;
+ 
++    // Memcached-Soren
++    // Author: sjoon@kaist.ac.kr
++    const int MAX_TIMESTAMP_RECORDS = 10000000;
++    
++    cwInitSoren(10, 2);
++    cwInitTs(MAX_TIMESTAMP_RECORDS);
++
+ #ifdef REDIS_TEST
+     if (argc >= 3 && !strcasecmp(argv[1], "test")) {
+         int flags = 0;

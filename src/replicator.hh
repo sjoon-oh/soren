@@ -78,7 +78,9 @@ namespace soren {
 
         // Launch a worker thread.
         int doLaunchPlayer(uint32_t, int);
-        void doPropose(uint8_t*, size_t, uint8_t*, size_t, uint8_t = REQTYPE_REPLICATE);
+        void doPropose(uint8_t*, size_t, uint8_t*, size_t, uint32_t = 0, uint8_t = REQTYPE_REPLICATE);
+
+        uint32_t doHash(uint8_t*, int);
 
         void doReleaseWait(uint8_t*, size_t, uint8_t*, size_t, uint32_t);
     };

@@ -177,10 +177,10 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     printf("Soren initialized.\n");
 }
 
-void cwPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_t* arg_keypref, size_t arg_keysz) {
+void cwPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_t* arg_keypref, size_t arg_keysz, uint32_t arg_hashval) {
 
     reinterpret_cast<soren::Replicator*>(glob_replicator)->doPropose(
-        arg_memaddr, arg_memsz, arg_keypref, arg_keysz, soren::REQTYPE_REPLICATE
+        arg_memaddr, arg_memsz, arg_keypref, arg_keysz, arg_hashval, soren::REQTYPE_REPLICATE
     );
 }
 
@@ -203,6 +203,15 @@ void cwCleanSoren() {
     delete reinterpret_cast<soren::Replayer*>(glob_replayer);
     delete reinterpret_cast<soren::Connector*>(glob_connector);
 }
+
+
+
+uint32_t cwSorenHash(uint8_t* arg_keypref, int arg_sz) {
+    uint32_t hashval = reinterpret_cast<soren::Replicator*>(glob_replicator)->doHash(arg_keypref, arg_sz);
+    return hashval;
+}
+
+
 
 void cwInitTs(int32_t arg_nts) { soren::initTimestamps(arg_nts); }
 void cwDumpTs() { soren::dumpElapsedTimes(); }

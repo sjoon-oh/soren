@@ -31,7 +31,7 @@
 +            (uint8_t*)command,
 +            strlen(command) + 1,
 +            (uint8_t*)tokens[KEY_TOKEN].value,
-+            tokens[KEY_TOKEN].length
++            tokens[KEY_TOKEN].length, 0
 +        );
 +        cwMarkTsAfter(timestamp_idx);
  
@@ -46,7 +46,7 @@
 +            (uint8_t*)command,
 +            strlen(command) + 1,
 +            (uint8_t*)tokens[KEY_TOKEN].value,
-+            tokens[KEY_TOKEN].length
++            tokens[KEY_TOKEN].length, 0
 +        );
 +        cwMarkTsAfter(timestamp_idx);
 +
@@ -61,7 +61,7 @@
 +            (uint8_t*)command,
 +            strlen(command) + 1,
 +            (uint8_t*)tokens[KEY_TOKEN].value,
-+            tokens[KEY_TOKEN].length
++            tokens[KEY_TOKEN].length, 0
 +        );
 +        cwMarkTsAfter(timestamp_idx);
 +

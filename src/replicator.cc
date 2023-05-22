@@ -495,9 +495,13 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                                 reinterpret_cast<struct HeaderSlot*>(msg_base)->mem_addr
                                     = remote_mr_addr + mr_offset + sizeof(struct HeaderSlot);
 
-                                reinterpret_cast<struct HeaderSlot*>(msg_base)->key_addr
-                                    = remote_mr_addr + mr_offset + sizeof(struct HeaderSlot) 
-                                        + (local_slot->header.key_addr - local_slot->header.mem_addr);
+                                if (local_slot->header.key_addr == 0)
+                                    reinterpret_cast<struct HeaderSlot*>(msg_base)->key_addr = 0;
+
+                                else
+                                    reinterpret_cast<struct HeaderSlot*>(msg_base)->key_addr
+                                        = remote_mr_addr + mr_offset + sizeof(struct HeaderSlot) 
+                                            + (local_slot->header.key_addr - local_slot->header.mem_addr);
 
                                 // std::atomic_thread_fence(std::memory_order_release);
 
@@ -583,14 +587,21 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
 /// @param arg_size 
 /// @param arg_keypref 
 void soren::Replicator::doPropose(
-    uint8_t* arg_memaddr, size_t arg_memsz, 
-    uint8_t* arg_keypref, size_t arg_keysz, uint8_t arg_reqtype) {
+    uint8_t* arg_memaddr, size_t arg_memsz, uint8_t* arg_keypref, size_t arg_keysz, 
+    uint32_t arg_hashval, uint8_t arg_reqtype) {
 
     uint32_t owner_node = 0, owner_hdl = 0;
-    uint32_t hashed_val = dep_checker.doHash(arg_keypref, arg_keysz);
+    uint32_t hashed_val = 0;
+
+    //
+    // If the arg_keypref do not hold valid address, say nullptr, the arg_hashval is considered as
+    // the valid hash for this request.
+
+    if (arg_keypref == nullptr)
+        hashed_val = arg_hashval;
+    else hashed_val = dep_checker.doHash(arg_keypref, arg_keysz);
 
     owner_node = hashed_val % 3;
-    // owner_node = 1;
     owner_hdl = (owner_node == node_id) ? 0 : 1;
 
     uint32_t slot_idx;
@@ -649,6 +660,12 @@ void soren::Replicator::doPropose(
     }
 
     SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "doPropose: exit for {}", workspace[slot_idx].hashed_key);
+}
+
+
+
+uint32_t soren::Replicator::doHash(uint8_t* arg_keypref, int arg_sz) {
+    return dep_checker.doHash(arg_keypref, arg_sz);
 }
 
 

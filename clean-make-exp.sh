@@ -13,8 +13,10 @@ MEMCACHED_SRCDIR="memcached-1.5.19"
 MEMCACHED_SRCFILE="memcached-1.5.19.tar.gz"
 
 REDIS_DIR="./experiments/redis"
+REDIS_SRCDIR="redis-7.0.5"
 REDIS_SRCFILE="redis-7.0.5.tar.gz"
 
+echo "Current workspace set to: ${WKRSPACE_HOME}"
 echo "****** soren build. ******"
 
 rm build/*.exp
@@ -75,4 +77,35 @@ cp memcached ${WKRSPACE_HOME}/build/memcached-soren.exp
 echo "****** memcached-soren build end. ******"
 
 cd ${WKRSPACE_HOME}
+
+echo "****** redis-soren build. ******"
+
+# Redis Build
+cd ${REDIS_DIR}
+
+if [ -d "${REDIS_SRCDIR}" ]; then
+    rm -r ${REDIS_SRCDIR}
+fi
+
+if [ -f "${WRKSPACE_HOME}/build/redis-soren.exp" ]; then
+    rm -r "${WRKSPACE_HOME}/build/redis-soren.exp"
+fi
+
+tar -xf ${REDIS_SRCFILE}
+# cp make-patch.sh ./${REDIS_SRCDIR}
+
+cd ${REDIS_SRCDIR}
+# cp src/Makefile src/Makefile-orig
+# cp src/networking.c src/networking-orig.c
+cp src/server.c src/server-orig.c
+
+sed -i "s|FINAL_LIBS=-lm|FINAL_LIBS=-lm\nFINAL_LIBS += -lsoren -lhartebeest -L ${WKRSPACE_HOME}/build/out |" src/Makefile
+
+cd ..
+patch -p1 -d ${REDIS_SRCDIR}/src < redis-soren.patch
+
+cd ${REDIS_SRCDIR}
+make -j 4
+
+echo "****** redis-soren build end. ******"
 
