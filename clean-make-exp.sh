@@ -106,6 +106,7 @@ patch -p1 -d ${REDIS_SRCDIR}/src < redis-soren.patch
 
 cd ${REDIS_SRCDIR}
 make -j 4
+cp src/redis-server ${WKRSPACE_HOME}/build/redis-soren.exp
 
 echo "****** redis-soren build end. ******"
 

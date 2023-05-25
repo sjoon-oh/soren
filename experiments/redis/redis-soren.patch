@@ -1,5 +1,5 @@
---- src/server-orig.c	2023-05-22 10:55:51.570419009 +0900
-+++ src/server.c	2023-05-22 11:00:10.338422179 +0900
+--- src/server-orig.c	2023-05-25 12:00:16.677642091 +0900
++++ src/server.c	2023-05-25 12:02:15.295643544 +0900
 @@ -66,6 +66,10 @@
  #include <sys/mman.h>
  #endif
@@ -11,7 +11,31 @@
  #if defined(HAVE_SYSCTL_KIPC_SOMAXCONN) || defined(HAVE_SYSCTL_KERN_SOMAXCONN)
  #include <sys/sysctl.h>
  #endif
-@@ -4016,6 +4020,8 @@
+@@ -3938,6 +3942,23 @@
+         return C_OK;       
+     }
+ 
++    // Memcached-Soren
++    // Author: sjoon@kaist.ac.kr
++    int timestamp_idx;
++    uint32_t hashval;
++    if (is_write_command) {
++
++        timestamp_idx = cwMarkTsBefore();
++        hashval = cwSorenHash(c->argv[1]->ptr, sdslen(c->argv[1]->ptr));
++
++        cwPropose(
++            (uint8_t*)c->querybuf,
++            sdslen(c->querybuf),
++            NULL, 0, hashval
++        );
++        cwMarkTsAfter(timestamp_idx);
++    }
++
+     /* Exec the command */
+     if (c->flags & CLIENT_MULTI &&
+         c->cmd->proc != execCommand &&
+@@ -4016,6 +4037,8 @@
  int prepareForShutdown(int flags) {
      if (isShutdownInitiated()) return C_ERR;
  
@@ -20,7 +44,7 @@
      /* When SHUTDOWN is called while the server is loading a dataset in
       * memory we need to make sure no attempt is performed to save
       * the dataset on shutdown (otherwise it could overwrite the current DB
-@@ -6780,6 +6786,13 @@
+@@ -6780,6 +6803,13 @@
      int j;
      char config_from_stdin = 0;
  
