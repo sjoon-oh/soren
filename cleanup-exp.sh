@@ -30,3 +30,14 @@ fi
 
 cd ${WKRSPACE_HOME}
 
+cd ${REDIS_DIR}
+
+if [ -d "${REDIS_SRCDIR}" ]; then
+    rm -r ${REDIS_SRCDIR}
+fi
+
+if [ -f "${WRKSPACE_HOME}/build/redis-soren.exp" ]; then
+    rm -r "${WRKSPACE_HOME}/build/redis-soren.exp"
+fi
+
+cd ${WKRSPACE_HOME}
