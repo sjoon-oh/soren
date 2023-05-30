@@ -23,8 +23,7 @@ namespace soren {
         uint32_t        node_id;
         uint32_t        nplayers;
 
-        uint32_t        ranger;
-        uint32_t        sub_par;    // Local sub partitions
+        uint32_t        sub_par;
 
         uint32_t        propose_cnt;
 
@@ -54,7 +53,7 @@ namespace soren {
         int __findNeighborAliveWorkerHandle(uint32_t);
 
     public:
-        Replicator(uint32_t, uint16_t, uint32_t, uint32_t);
+        Replicator(uint32_t, uint16_t, uint32_t);
         ~Replicator();
 
         // Memory Regions (MRs) and Queue Pairs (QPs) are registered to this handle maps:

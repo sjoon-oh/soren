@@ -17,8 +17,6 @@
 // This is C-Wrapper for functions in the file, soren.cc.
 
 uint32_t glob_node_id;      // What is this nodes ID?
-
-uint32_t glob_ranger;       // Globally manages the range of each hash values.
 uint32_t glob_nplayers;     // What is the number of players in a network?
 
 void*   glob_connector;     // Single global Connector instance.
@@ -53,9 +51,9 @@ int cwGetNumPlayers(void* arg_conn) {
 /// @brief Initialize Soren. This wraps components of each instance of Soren.
 /// @param arg_ranger 
 /// @param arg_subpar 
-void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
+void cwInitSoren(int (*arg_repfunc)(uint8_t*, size_t, int, void*)) {
 
-    glob_connector = cwInitConnection(arg_subpar);
+    glob_connector = cwInitConnection(2);
 
     printf("Soren connection OK.\n");
 
@@ -65,13 +63,12 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     // interact with other nodes.
 
     glob_node_id    = reinterpret_cast<soren::Connector*>(glob_connector)->getNodeId();
-    glob_ranger     = arg_ranger;
     glob_nplayers   = cwGetNumPlayers(glob_connector);
 
     //
     // Initiate the replayer
     glob_replayer = reinterpret_cast<soren::Replayer*>(
-        new soren::Replayer(glob_node_id, glob_nplayers, glob_ranger, arg_subpar));
+        new soren::Replayer(glob_node_id, glob_nplayers, 2));
     
     //
     // Initiate the replicator. If this node ID is 'some_id', 
@@ -79,7 +76,7 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     // Before initiating Replicator worker threads,
     //  make sure that all replayers in a same node are initiated.
     glob_replicator = reinterpret_cast<soren::Replicator*>(
-        new soren::Replicator(glob_node_id, glob_nplayers, glob_ranger, arg_subpar));
+        new soren::Replicator(glob_node_id, glob_nplayers, 2));
 
     printf("Player instances initialized.\n");
 
@@ -94,7 +91,7 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     // the replications.
     //
     for (int nid = 0; nid < glob_nplayers; nid++) {
-        for (int sp = 0; sp < arg_subpar; sp++) {
+        for (int sp = 0; sp < 2; sp++) {
             if (nid != glob_node_id)            // For this node ID 'some_id', do not launch replayer,
                                                 // since it is 'some_id's responsibility to let data copied.
                 reinterpret_cast<soren::Replayer*>(glob_replayer)->doAddLocalMr(
@@ -110,10 +107,14 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     // 
     // A thread is written in lambda, thus refer to replayer.cc file.
     //
+
     for (int nid = 0; nid < glob_nplayers; nid++) {
         if (nid != glob_node_id) {
-            for (int sp = 0; sp < arg_subpar; sp++)
-                reinterpret_cast<soren::Replayer*>(glob_replayer)->doLaunchPlayer(nid, sp, reinterpret_cast<soren::Replicator*>(glob_replicator));
+            for (int sp = 0; sp < 2; sp++)
+                reinterpret_cast<soren::Replayer*>(glob_replayer)->doLaunchPlayer(
+                        nid, sp, reinterpret_cast<soren::Replicator*>(glob_replicator),
+                        reinterpret_cast<int(*)(uint8_t*, size_t, int, void*)>(arg_repfunc)
+                    );
         }
     }
 
@@ -132,7 +133,7 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     // Unlike the replicator who only needs Memory Region (for polling),
     // the replicator threads should have both MRs and QPs.
     for (int nid = 0; nid < glob_nplayers; nid++) {
-        for (int sp = 0; sp < arg_subpar; sp++) {
+        for (int sp = 0; sp < 2; sp++) {
             if (nid == glob_node_id) {                      // For this node ID 'some_id', 
                                                             // register a local MR.
                 reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddLocalMr(    
@@ -169,7 +170,7 @@ void cwInitSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
 
     //
     // Launch the replicator threads. If this node ID is 'some_id', 
-    for (int sp = 0; sp < arg_subpar; sp++)
+    for (int sp = 0; sp < 2; sp++)
         reinterpret_cast<soren::Replicator*>(glob_replicator)->doLaunchPlayer(glob_nplayers, sp);
 
     printf("Replicator threads launched.\n");

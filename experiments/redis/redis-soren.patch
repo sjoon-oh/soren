@@ -52,7 +52,7 @@
 +    // Author: sjoon@kaist.ac.kr
 +    const int MAX_TIMESTAMP_RECORDS = 10000000;
 +    
-+    cwInitSoren(10, 2);
++    cwInitSoren(NULL);
 +    cwInitTs(MAX_TIMESTAMP_RECORDS);
 +
  #ifdef REDIS_TEST

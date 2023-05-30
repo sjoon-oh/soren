@@ -1,6 +1,6 @@
---- memcached-orig.c	2023-05-30 11:02:57.791892836 +0900
-+++ memcached.c	2023-05-30 11:10:28.722898361 +0900
-@@ -61,6 +61,10 @@
+--- memcached-orig.c	2023-05-30 20:01:58.205289072 +0900
++++ memcached.c	2023-05-30 20:08:33.967293920 +0900
+@@ -61,6 +61,12 @@
  #include "tls.h"
  #endif
  
@@ -8,10 +8,12 @@
 +// Author: sjoon@kaist.ac.kr
 +#include "../../../src/soren-c.h"
 +
++int sorenReplayFuncWrapper(uint8_t* arg_memaddr, size_t arg_memsz, int argc, void* argv);
++
  #if defined(__FreeBSD__)
  #include <sys/sysctl.h>
  #endif
-@@ -5759,6 +5763,9 @@
+@@ -5759,6 +5765,9 @@
      size_t ntokens;
      int comm;
  
@@ -21,7 +23,7 @@
      assert(c != NULL);
  
      MEMCACHED_PROCESS_COMMAND_START(c->sfd, c->rcurr, c->rbytes);
-@@ -5779,6 +5786,7 @@
+@@ -5779,6 +5788,7 @@
          return;
      }
  
@@ -29,7 +31,7 @@
      ntokens = tokenize_command(command, tokens, MAX_TOKENS);
      if (ntokens >= 3 &&
          ((strcmp(tokens[COMMAND_TOKEN].value, "get") == 0) ||
-@@ -5792,15 +5800,48 @@
+@@ -5792,15 +5802,48 @@
                  (strcmp(tokens[COMMAND_TOKEN].value, "replace") == 0 && (comm = NREAD_REPLACE)) ||
                  (strcmp(tokens[COMMAND_TOKEN].value, "prepend") == 0 && (comm = NREAD_PREPEND)) ||
                  (strcmp(tokens[COMMAND_TOKEN].value, "append") == 0 && (comm = NREAD_APPEND)) )) {
@@ -78,7 +80,7 @@
          process_arithmetic_command(c, tokens, ntokens, 1);
  
      } else if (ntokens >= 3 && (strcmp(tokens[COMMAND_TOKEN].value, "gets") == 0)) {
-@@ -7796,6 +7837,11 @@
+@@ -7796,6 +7839,11 @@
  
  static void sig_handler(const int sig) {
      printf("Signal handled: %s.\n", strsignal(sig));
@@ -90,7 +92,7 @@
      exit(EXIT_SUCCESS);
  }
  
-@@ -7805,6 +7851,11 @@
+@@ -7805,6 +7853,11 @@
  
  static void sig_usrhandler(const int sig) {
      printf("Graceful shutdown signal handled: %s.\n", strsignal(sig));
@@ -102,7 +104,7 @@
      stop_main_loop = true;
  }
  
-@@ -8441,6 +8492,13 @@
+@@ -8441,6 +8494,13 @@
      ext_cf.wbuf_count = ext_cf.page_buckets;
  #endif
  
@@ -110,9 +112,90 @@
 +    // Author: sjoon@kaist.ac.kr
 +    const int MAX_TIMESTAMP_RECORDS = 10000000;
 +
-+    cwInitSoren(10, 2);
++    cwInitSoren(sorenReplayFuncWrapper);
 +    cwInitTs(MAX_TIMESTAMP_RECORDS);
 +
      /* Run regardless of initializing it later */
      init_lru_maintainer();
  
+@@ -9793,3 +9853,79 @@
+ 
+     return retval;
+ }
++
++// Memcached-Soren
++// Author: sjoon@kaist.ac.kr
++int sorenReplayFuncWrapper(uint8_t* arg_memaddr, size_t arg_memsz, int argc, void* argv) {
++
++    // printf("Replayer wrapper called.\n");
++
++    conn c;
++    memset(&c, 0, sizeof(struct conn)); // Make it all zeros.
++
++    c.isize = ITEM_LIST_INITIAL;
++    c.ilist = (item **)malloc(sizeof(item *) * c.isize);
++
++    token_t tokens[MAX_TOKENS];
++    size_t ntokens = 0;
++    int comm;
++
++    char* command = (char*)arg_memaddr;
++    char *start, *end;
++
++    // Already tokenized, thus record it by '\0'.
++    start = end = command;
++    for (int i = 0; i < arg_memsz; i++) {
++        if (*end == '\0') {
++            if (start != end) {
++                tokens[ntokens].value = start;
++                tokens[ntokens].length = end - start;
++                ntokens++;
++                if (ntokens == MAX_TOKENS - 1) {
++                    end++;
++                    start = end;
++                    break;
++                }
++            }
++            start = end + 1;
++        }
++        end++;
++    }
++
++    if (start != end) {
++        tokens[ntokens].value = start;
++        tokens[ntokens].length = end - start;
++        ntokens++;
++    }
++
++    tokens[ntokens].value =  *end == '\0' ? NULL : end;
++    tokens[ntokens].length = 0;
++    ntokens++;
++
++    if ((ntokens == 6 || ntokens == 7) &&
++        ((strcmp(tokens[COMMAND_TOKEN].value, "add") == 0 && (comm = NREAD_ADD)) ||
++        (strcmp(tokens[COMMAND_TOKEN].value, "set") == 0 && (comm = NREAD_SET)) ||
++        (strcmp(tokens[COMMAND_TOKEN].value, "replace") == 0 && (comm = NREAD_REPLACE)) ||
++        (strcmp(tokens[COMMAND_TOKEN].value, "prepend") == 0 && (comm = NREAD_PREPEND)) ||
++        (strcmp(tokens[COMMAND_TOKEN].value, "append") == 0 && (comm = NREAD_APPEND)) )) {
++        
++        printf("Wrapper: process_update_command call, token: %ld\n", ntokens);
++        printf("Wrapper: Content - %s %s %s %s %s\n", tokens[0].value, tokens[1].value, tokens[2].value, tokens[3].value, tokens[4].value);
++        process_update_command(&c, tokens, ntokens, comm, false);
++        printf("Wrapper: end\n");
++
++    } else if ((ntokens == 7 || ntokens == 8) && (strcmp(tokens[COMMAND_TOKEN].value, "cas") == 0 && (comm = NREAD_CAS))) {
++
++        process_update_command(&c, tokens, ntokens, comm, true);
++
++    } else if ((ntokens == 4 || ntokens == 5) && (strcmp(tokens[COMMAND_TOKEN].value, "incr") == 0)) {
++
++        process_arithmetic_command(&c, tokens, ntokens, 1);
++    }
++
++    if (c.ilist)
++        free(c.ilist);
++    // printf("End of wrapper.\n");
++
++    return 0;
++}
+\ No newline at end of file

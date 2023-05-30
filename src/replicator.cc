@@ -79,10 +79,9 @@ int soren::Replicator::__findNeighborAliveWorkerHandle(uint32_t arg_hdl) {
 /// @brief Constructor of Replicator instance.
 /// @param arg_nid 
 /// @param arg_players 
-/// @param arg_ranger 
 /// @param arg_subpar 
-soren::Replicator::Replicator(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_ranger = 10, uint32_t arg_subpar = 2)
-    : node_id(arg_nid), nplayers(arg_players), ranger(arg_ranger), sub_par(arg_subpar) {
+soren::Replicator::Replicator(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_subpar = 2)
+    : node_id(arg_nid), nplayers(arg_players), sub_par(arg_subpar) {
         if (arg_subpar > MAX_SUBPAR)
             sub_par = MAX_SUBPAR;
         

@@ -82,8 +82,8 @@ int soren::Replayer::__findNeighborAliveWorkerHandle(uint32_t arg_hdl) {
 /// @param arg_players 
 /// @param arg_ranger 
 /// @param arg_subpar 
-soren::Replayer::Replayer(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_ranger = 10, uint32_t arg_subpar = 1) : 
-    node_id(arg_nid), nplayers(arg_players), ranger(arg_ranger), sub_par(arg_subpar) {
+soren::Replayer::Replayer(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_subpar = 1) : 
+    node_id(arg_nid), nplayers(arg_players), sub_par(arg_subpar) {
     if (arg_subpar > MAX_SUBPAR)
         sub_par = MAX_SUBPAR;
 }
@@ -142,7 +142,10 @@ void soren::Replayer::doForceKillWorker(uint32_t arg_hdl) {
 /// @param arg_from_nid 
 /// @param arg_cur_sp 
 /// @return 
-int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Replicator* arg_replicator) {
+int soren::Replayer::doLaunchPlayer(
+        uint32_t arg_from_nid, int arg_cur_sp, Replicator* arg_replicator,
+        std::function<int(uint8_t*, size_t, int, void*)> arg_repfunc
+    ) {
 
     int handle = __findEmptyWorkerHandle();         // Find the next index with unused WorkerThread array.
     WorkerThread& wrkr_inst = workers.at(handle);
@@ -162,7 +165,8 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Repli
             const uint32_t arg_nid,                             // Node ID
             const uint32_t arg_from_nid,                        // Node ID that sends data from.
             const int arg_current_sp,                           // Sub partition, (in case config changes.)
-            Replicator* arg_replicator
+            Replicator* arg_replicator,
+            std::function<int(uint8_t*, size_t, int, void*)> arg_replayf
         ) {
             
             std::string log_fname = "soren_replayer_wt_" + std::to_string(arg_hdl) + ".log";
@@ -308,11 +312,16 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Repli
                                 //
                                 // Do something here, REPLAY!!
                                 {
+                                    if (arg_replayf == nullptr) {
 
-
-
-
-                                    ;
+                                        ;
+                                    }
+                                    else
+                                        arg_replayf(
+                                            reinterpret_cast<uint8_t*>(header->mem_addr), 
+                                            header->mem_size, 
+                                            0,
+                                            nullptr);
                                 }
                             }
                             else 
@@ -347,7 +356,7 @@ int soren::Replayer::doLaunchPlayer(uint32_t arg_from_nid, int arg_cur_sp, Repli
             std::ref(wrkr_inst.wrk_sig), 
             wrkr_inst.wrkspace, handle,
             std::ref(mr_hdls),
-            node_id, arg_from_nid, arg_cur_sp, arg_replicator
+            node_id, arg_from_nid, arg_cur_sp, arg_replicator, arg_repfunc
     );
 
     // Register to the fixed array, workers. 

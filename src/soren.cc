@@ -25,11 +25,6 @@ namespace soren {
     std::unique_ptr<Connector>  INST_CONNECTOR;     // Single global Connector instance.
     std::unique_ptr<Replayer>   INST_REPLAYER;      // Single global Replayer instance.
     std::unique_ptr<Replicator> INST_REPLICATOR;    // Single global Replicator instance.
-
-    std::atomic<uint32_t>   glob_ranger;            // Globally manages the range of each hash values.
-    std::atomic<uint32_t>   glob_subpar;            // Globally manages the sub partition.
-                                                    // Curent version assumes that the sub partition 
-                                                    // do not change dynamically in runtime.
     
     uint32_t                glob_node_id;           // What is this nodes ID?
     uint32_t                glob_nplayers;          // What is the number of players in a network?
@@ -37,12 +32,10 @@ namespace soren {
 
 
 
-/// @brief Initializes Soren.
-/// @param arg_ranger 
-/// @param arg_subpar 
-void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
 
-    INST_CONNECTOR.reset(new Connector(arg_subpar));    
+void soren::initSoren(std::function<int(uint8_t*, size_t, int, void*)> arg_repfunc) {
+
+    INST_CONNECTOR.reset(new Connector(2));    
 
     // Connector exchanges the network information automatically
     // in its contructor. 
@@ -52,19 +45,16 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     glob_node_id   = INST_CONNECTOR->getNodeId();
     glob_nplayers  = hbwrapper::getNumPlayers();
 
-    glob_ranger.store(arg_ranger);
-    glob_subpar.store(arg_subpar);
-
     //
     // Initiate the replayer
-    INST_REPLAYER.reset(new Replayer(glob_node_id, glob_nplayers, arg_ranger, arg_subpar));
+    INST_REPLAYER.reset(new Replayer(glob_node_id, glob_nplayers, 2));
     
     //
     // Initiate the replicator. If this node ID is 'some_id', 
     //  launch a replicator thread that distributes data in 'some_id' space.
     // Before initiating Replicator worker threads,
     //  make sure that all replayers in a same node are initiated.
-    INST_REPLICATOR.reset(new Replicator(glob_node_id, glob_nplayers, arg_ranger, arg_subpar));
+    INST_REPLICATOR.reset(new Replicator(glob_node_id, glob_nplayers, 2));
 
     //
     // There are 2*(n-1)*subpar replayers in Soren. 
@@ -77,7 +67,7 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     // the replications.
     //
     for (int nid = 0; nid < glob_nplayers; nid++) {
-        for (int sp = 0; sp < arg_subpar; sp++) {
+        for (int sp = 0; sp < 2; sp++) {
             if (nid != glob_node_id)            // For this node ID 'some_id', do not launch replayer,
                                                 // since it is 'some_id's responsibility to let data copied.
                 INST_REPLAYER->doAddLocalMr(
@@ -95,8 +85,8 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     //
     for (int nid = 0; nid < glob_nplayers; nid++) {
         if (nid != glob_node_id) {
-            for (int sp = 0; sp < arg_subpar; sp++)
-                INST_REPLAYER->doLaunchPlayer(nid, sp, INST_REPLICATOR.get());
+            for (int sp = 0; sp < 2; sp++)
+                INST_REPLAYER->doLaunchPlayer(nid, sp, INST_REPLICATOR.get(), arg_repfunc);
         }
     }
 
@@ -112,7 +102,7 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
     // Unlike the replicator who only needs Memory Region (for polling),
     // the replicator threads should have both MRs and QPs.
     for (int nid = 0; nid < glob_nplayers; nid++) {
-        for (int sp = 0; sp < arg_subpar; sp++) {
+        for (int sp = 0; sp < 2; sp++) {
             if (nid == glob_node_id) {                      // For this node ID 'some_id', 
                 INST_REPLICATOR->doAddLocalMr(              // register a local MR.
                     GET_MR_GLOBAL(glob_node_id, sp),        // using globally decided MR ID, decided across the nodes.
@@ -147,7 +137,7 @@ void soren::initSoren(uint32_t arg_ranger, uint32_t arg_subpar) {
 
     //
     // Launch the replicator threads. If this node ID is 'some_id', 
-    for (int sp = 0; sp < arg_subpar; sp++)
+    for (int sp = 0; sp < 2; sp++)
         INST_REPLICATOR->doLaunchPlayer(glob_nplayers, sp);
 }
 

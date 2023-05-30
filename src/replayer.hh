@@ -10,6 +10,8 @@
 
 #include <map>     
 #include <array>
+#include <functional>
+
 #include <infiniband/verbs.h>
 
 namespace soren {
@@ -21,7 +23,6 @@ namespace soren {
         uint32_t        node_id;
         uint32_t        nplayers;
 
-        uint32_t        ranger;
         uint32_t        sub_par;    // Local sub partitions
 
         //
@@ -45,7 +46,7 @@ namespace soren {
         int __findNeighborAliveWorkerHandle(uint32_t);
 
     public:
-        Replayer(uint32_t, uint16_t, uint32_t, uint32_t);
+        Replayer(uint32_t, uint16_t, uint32_t);
         ~Replayer();
 
         // Memory Regions (MRs) and Queue Pairs (QPs) are registered to this handle maps:
@@ -64,7 +65,7 @@ namespace soren {
         void doForceKillWorker(uint32_t);   // May have unexpected behaviour.
 
         // Launch a worker thread.
-        int doLaunchPlayer(uint32_t, int, Replicator*);
+        int doLaunchPlayer(uint32_t, int, Replicator*, std::function<int(uint8_t*, size_t, int, void*)> = nullptr);
         bool isWorkerAlive(uint32_t);
     };
 }

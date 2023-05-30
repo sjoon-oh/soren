@@ -29,6 +29,14 @@ namespace soren {
     }
 }
 
+int dummy_replayf(uint8_t* arg_memaddr, size_t arg_memsz, int argc, void* argv) {
+
+    std::cout << "Replay function called, printing args:\n";
+    std::cout << "Addr: " << arg_memaddr << ", Size: " << arg_memsz << ", Aux#: " << argc << std::endl;
+
+    return 0;
+}
+
 //
 // Main. 
 int main(int argc, char *argv[]) {
@@ -56,7 +64,8 @@ int main(int argc, char *argv[]) {
     std::mt19937 generator(random_device());
 
     soren::initTimestamps(NUM_REQUESTS);
-    soren::initSoren(10, 2);
+    // soren::initSoren(dummy_replayf);
+    soren::initSoren(nullptr);
 
     std::cout << "Standalone test start.\n";
 

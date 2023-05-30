@@ -21,7 +21,7 @@ this respect, it irrigates the deserts that our lives have already become.";
     char* target = test_payload;
 
     printf("SOREN C-WRAPPER DEMO\n");
-    cwInitSoren(10, 2);
+    cwInitSoren(NULL);
 
     int32_t ts_idx;
     cwInitTs(1000);
