@@ -1,5 +1,5 @@
---- memcached-orig.c	2023-06-05 13:49:14.291366522 +0900
-+++ memcached.c	2023-06-05 18:15:02.442561919 +0900
+--- memcached-orig.c	2023-06-05 18:24:22.853568785 +0900
++++ memcached.c	2023-06-05 18:30:37.835573380 +0900
 @@ -61,6 +61,12 @@
  #include "tls.h"
  #endif
@@ -118,7 +118,7 @@
      /* Run regardless of initializing it later */
      init_lru_maintainer();
  
-@@ -9793,3 +9853,101 @@
+@@ -9793,3 +9853,103 @@
  
      return retval;
  }
@@ -202,13 +202,15 @@
 +        (strcmp(tokens[COMMAND_TOKEN].value, "replace") == 0 && (comm = NREAD_REPLACE)) ||
 +        (strcmp(tokens[COMMAND_TOKEN].value, "prepend") == 0 && (comm = NREAD_PREPEND)) ||
 +        (strcmp(tokens[COMMAND_TOKEN].value, "append") == 0 && (comm = NREAD_APPEND)) )) {
-+        
-+        printf("Wrapper: process_update_command call, token: %ld\n", ntokens);
-+        printf("Wrapper: Content - %s %s %s %s %s\n", tokens[0].value, tokens[1].value, tokens[2].value, tokens[3].value, tokens[4].value);
++
++        // Debug:
++        // printf("Wrapper: process_update_command call, token: %ld\n", ntokens);
++        // printf("Wrapper: Content - %s %s %s %s %s\n", tokens[0].value, tokens[1].value, tokens[2].value, tokens[3].value, tokens[4].value);
 +
 +        process_update_command(&c, tokens, ntokens, comm, false);
 +
-+        printf("Wrapper: end, %s\n", tokens[1].value);
++        // Debug:
++        // printf("Wrapper: end, %s\n", tokens[1].value);
 +    }
 +
 +    free(c.rbuf);
