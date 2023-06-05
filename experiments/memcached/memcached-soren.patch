@@ -1,5 +1,5 @@
---- memcached-orig.c	2023-05-30 20:01:58.205289072 +0900
-+++ memcached.c	2023-05-30 20:08:33.967293920 +0900
+--- memcached-orig.c	2023-06-05 13:49:14.291366522 +0900
++++ memcached.c	2023-06-05 18:15:02.442561919 +0900
 @@ -61,6 +61,12 @@
  #include "tls.h"
  #endif
@@ -118,7 +118,7 @@
      /* Run regardless of initializing it later */
      init_lru_maintainer();
  
-@@ -9793,3 +9853,79 @@
+@@ -9793,3 +9853,101 @@
  
      return retval;
  }
@@ -132,8 +132,33 @@
 +    conn c;
 +    memset(&c, 0, sizeof(struct conn)); // Make it all zeros.
 +
++    c.read = NULL;
++    c.sendmsg = NULL;
++    c.write = NULL;
++    c.rbuf = c.wbuf = 0;
++    c.ilist = 0;
++    c.suffixlist = 0;
++    c.iov = 0;
++    c.msglist = 0;
++    c.hdrbuf = 0;
++
++    c.rsize = DATA_BUFFER_SIZE;
++    c.wsize = DATA_BUFFER_SIZE;
 +    c.isize = ITEM_LIST_INITIAL;
++    c.suffixsize = SUFFIX_LIST_INITIAL;
++    c.iovsize = IOV_LIST_INITIAL;
++    c.msgsize = MSG_LIST_INITIAL;
++
++    c.rbuf = (char *)malloc((size_t)c.rsize);
++    c.wbuf = (char *)malloc((size_t)c.wsize);
 +    c.ilist = (item **)malloc(sizeof(item *) * c.isize);
++    c.suffixlist = (char **)malloc(sizeof(char *) * c.suffixsize);
++    c.iov = (struct iovec *)malloc(sizeof(struct iovec) * c.iovsize);
++    c.msglist = (struct msghdr *)malloc(sizeof(struct msghdr) * c.msgsize);
++
++    c.icurr = c.ilist;
++    c.suffixcurr = c.suffixlist;
++
 +
 +    token_t tokens[MAX_TOKENS];
 +    size_t ntokens = 0;
@@ -180,21 +205,18 @@
 +        
 +        printf("Wrapper: process_update_command call, token: %ld\n", ntokens);
 +        printf("Wrapper: Content - %s %s %s %s %s\n", tokens[0].value, tokens[1].value, tokens[2].value, tokens[3].value, tokens[4].value);
++
 +        process_update_command(&c, tokens, ntokens, comm, false);
-+        printf("Wrapper: end\n");
 +
-+    } else if ((ntokens == 7 || ntokens == 8) && (strcmp(tokens[COMMAND_TOKEN].value, "cas") == 0 && (comm = NREAD_CAS))) {
-+
-+        process_update_command(&c, tokens, ntokens, comm, true);
-+
-+    } else if ((ntokens == 4 || ntokens == 5) && (strcmp(tokens[COMMAND_TOKEN].value, "incr") == 0)) {
-+
-+        process_arithmetic_command(&c, tokens, ntokens, 1);
++        printf("Wrapper: end, %s\n", tokens[1].value);
 +    }
 +
-+    if (c.ilist)
-+        free(c.ilist);
-+    // printf("End of wrapper.\n");
++    free(c.rbuf);
++    free(c.wbuf);
++    free(c.ilist);
++    free(c.suffixlist);
++    free(c.iov);
++    free(c.msglist);
 +
 +    return 0;
 +}

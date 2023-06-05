@@ -289,7 +289,7 @@ int soren::Replayer::doLaunchPlayer(
                                     arg_replicator->doPropose(
                                         reinterpret_cast<uint8_t*>(header->mem_addr), header->mem_size,
                                         reinterpret_cast<uint8_t*>(header->key_addr), header->key_size,
-                                        slot_canary, REQTYPE_DEPCHECK_ACK
+                                        header_canary, REQTYPE_DEPCHECK_ACK
                                     );  // Send perspective
 
                                 } else {

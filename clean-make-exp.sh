@@ -66,6 +66,7 @@ cd ${MEMCACHED_SRCDIR}
 sed -i "s/LIBS = -lhugetlbfs -levent/LIBS = -lhugetlbfs -levent\nLIBS += -lsoren -lhartebeest/" Makefile
 
 cp memcached.c memcached-orig.c
+# cp items.c items-orig.c
 
 cd ..
 patch -p0 -d ${MEMCACHED_SRCDIR} < memcached-soren.patch

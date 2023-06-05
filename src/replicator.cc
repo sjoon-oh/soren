@@ -552,6 +552,8 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
                             curproc_idx = (curproc_idx == (MAX_NSLOTS - 1)) ? 0 : curproc_idx + 1;
 
                             local_slot->footprint = FOOTPRINT_REPLICATED;   // Mark as invalid. 
+
+                            SOREN_LOGGER_INFO(worker_logger, "Next offset: ({})", mr_offset);
                         }
 
                         arg_wrkr_inst.wrk_sig.store(SIG_READY);
@@ -597,8 +599,9 @@ void soren::Replicator::doPropose(
     // If the arg_keypref do not hold valid address, say nullptr, the arg_hashval is considered as
     // the valid hash for this request.
 
-    if (arg_keypref == nullptr)
+    if (arg_keypref == nullptr) {
         hashed_val = arg_hashval;
+    }
     else hashed_val = dep_checker.doHash(arg_keypref, arg_keysz);
 
     owner_node = hashed_val % 3;

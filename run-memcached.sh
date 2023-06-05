@@ -9,4 +9,5 @@
 ./clean-make-exp.sh
 
 # ./build/memcached-soren.exp -vv -p 6379 -t 4
-./build/memcached-soren.exp -p 6379 -t 4
+./build/memcached-soren.exp -p 6379 -t 4 -m 32768
+# ./build/memcached-soren.exp -p 6379 -t 4 -m 32768
