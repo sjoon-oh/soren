@@ -1,5 +1,5 @@
---- memcached-orig.c	2023-06-05 18:24:22.853568785 +0900
-+++ memcached.c	2023-06-05 18:30:37.835573380 +0900
+--- memcached-orig.c	2023-06-12 20:41:44.515079792 +0900
++++ memcached.c	2023-06-12 20:43:07.495080808 +0900
 @@ -61,6 +61,12 @@
  #include "tls.h"
  #endif
@@ -80,19 +80,20 @@
          process_arithmetic_command(c, tokens, ntokens, 1);
  
      } else if (ntokens >= 3 && (strcmp(tokens[COMMAND_TOKEN].value, "gets") == 0)) {
-@@ -7796,6 +7839,11 @@
+@@ -7796,6 +7839,12 @@
  
  static void sig_handler(const int sig) {
      printf("Signal handled: %s.\n", strsignal(sig));
 +
 +    // Memcached-Soren
 +    // Author: sjoon@kaist.ac.kr
++    cwDumpTs();
 +    cwCleanSoren();
 +
      exit(EXIT_SUCCESS);
  }
  
-@@ -7805,6 +7853,11 @@
+@@ -7805,6 +7854,11 @@
  
  static void sig_usrhandler(const int sig) {
      printf("Graceful shutdown signal handled: %s.\n", strsignal(sig));
@@ -104,7 +105,7 @@
      stop_main_loop = true;
  }
  
-@@ -8441,6 +8494,13 @@
+@@ -8441,6 +8495,13 @@
      ext_cf.wbuf_count = ext_cf.page_buckets;
  #endif
  
@@ -118,7 +119,7 @@
      /* Run regardless of initializing it later */
      init_lru_maintainer();
  
-@@ -9793,3 +9853,103 @@
+@@ -9793,3 +9854,103 @@
  
      return retval;
  }

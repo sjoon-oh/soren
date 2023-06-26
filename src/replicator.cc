@@ -86,9 +86,13 @@ soren::Replicator::Replicator(uint32_t arg_nid, uint16_t arg_players, uint32_t a
             sub_par = MAX_SUBPAR;
         
         propose_cnt = 0;
+        depcheck_cnt = 0;
     }
 
-soren::Replicator::~Replicator() { for (auto& elem: mr_remote_hdls) delete elem; }
+soren::Replicator::~Replicator() {
+    std::cout << "Propose Count: " << propose_cnt << ", Depcheck Count: " << depcheck_cnt << std::endl;
+    for (auto& elem: mr_remote_hdls) delete elem; 
+}
 
 
 
@@ -595,6 +599,8 @@ void soren::Replicator::doPropose(
     uint32_t owner_node = 0, owner_hdl = 0;
     uint32_t hashed_val = 0;
 
+    // propose_cnt++;
+
     //
     // If the arg_keypref do not hold valid address, say nullptr, the arg_hashval is considered as
     // the valid hash for this request.
@@ -605,7 +611,13 @@ void soren::Replicator::doPropose(
     else hashed_val = dep_checker.doHash(arg_keypref, arg_keysz);
 
     owner_node = hashed_val % 3;
+    // owner_node = node_id;
     owner_hdl = (owner_node == node_id) ? 0 : 1;
+
+    if (owner_hdl == 1)
+        depcheck_cnt++;
+    else if (owner_hdl == 0 && arg_reqtype == REQTYPE_REPLICATE)
+        propose_cnt++;
 
     uint32_t slot_idx;
     while ((slot_idx = workers.at(owner_hdl).next_free_sidx.fetch_add(1)) >= MAX_NSLOTS)

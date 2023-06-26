@@ -26,6 +26,7 @@ namespace soren {
         uint32_t        sub_par;
 
         uint32_t        propose_cnt;
+        uint32_t        depcheck_cnt;
 
         //
         // These resources are just borrowed (copied) version. 

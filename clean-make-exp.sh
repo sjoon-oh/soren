@@ -99,6 +99,10 @@ cd ${REDIS_SRCDIR}
 # cp src/Makefile src/Makefile-orig
 # cp src/networking.c src/networking-orig.c
 cp src/server.c src/server-orig.c
+cp src/server.h src/server-orig.h
+
+cp src/sds.c src/sds-orig.c
+cp src/sds.h src/sds-orig.h
 
 sed -i "s|FINAL_LIBS=-lm|FINAL_LIBS=-lm\nFINAL_LIBS += -lsoren -lhartebeest -L ${WKRSPACE_HOME}/build/out |" src/Makefile
 

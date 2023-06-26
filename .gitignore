@@ -52,4 +52,7 @@ dumps/dumps-2/*.txt
 
 logs/soren*log
 
+experiments/redis/redis-7.0.5
+experiments/memcached/memcached-1.5.19
+
 # CMakes

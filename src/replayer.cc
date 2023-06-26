@@ -303,25 +303,23 @@ int soren::Replayer::doLaunchPlayer(
                                             reinterpret_cast<uint8_t*>(header->mem_addr), header->mem_size,
                                             reinterpret_cast<uint8_t*>(header->key_addr), header->key_size, header_canary
                                         );
+
+                                        {
+                                            //
+                                            // Do something here, REPLAY!!
+                                            if (arg_replayf == nullptr) {
+                                                ;
+                                            }
+                                            else
+                                                arg_replayf(
+                                                    reinterpret_cast<uint8_t*>(header->mem_addr), 
+                                                    header->mem_size, 
+                                                    0,
+                                                    nullptr);
+                                        }
                                     }
                                     else
                                         SOREN_LOGGER_INFO(worker_logger, "Seems others are waiting for ACK: {}", header_canary);
-                                    // }
-                                }
-
-                                //
-                                // Do something here, REPLAY!!
-                                {
-                                    if (arg_replayf == nullptr) {
-
-                                        ;
-                                    }
-                                    else
-                                        arg_replayf(
-                                            reinterpret_cast<uint8_t*>(header->mem_addr), 
-                                            header->mem_size, 
-                                            0,
-                                            nullptr);
                                 }
                             }
                             else 
