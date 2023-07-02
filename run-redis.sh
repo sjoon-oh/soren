@@ -9,4 +9,9 @@
 # Remove previous Redis persistence
 rm ./dump.rdb
 
-./build/redis-soren.exp --port 6379 --protected-mode no --io-threads-do-reads yes --save "" --appendonly no
+./build/redis-soren.exp \
+    --port 6379 \
+    --protected-mode no \
+    --io-threads-do-reads yes \
+    --save "" --appendonly no
+    # --io-threads 4
