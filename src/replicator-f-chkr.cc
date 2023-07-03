@@ -37,8 +37,8 @@ int workerfDivDepchecker(
     std::string log_fname = "soren_depchecker_wt_" + std::to_string(arg_hdl) + ".log";
     std::string logger_name = "SOREN/DEPCHECKER/W" + std::to_string(arg_hdl);
 
-    // soren::LoggerFileOnly worker_logger(logger_name, log_fname);
-    soren::Logger worker_logger(logger_name, log_fname);
+    soren::LoggerFileOnly worker_logger(logger_name, log_fname);
+    // soren::Logger worker_logger(logger_name, log_fname);
 
     uint32_t    n_prop = 0;
     int32_t     mr_offset = 128;
@@ -221,6 +221,9 @@ int workerfDivDepchecker(
                     //
                     // 1. Alignment : 64 byte aligned by default.
                     soren::prepareNextAlignedOffset(mr_offset, mr_linfree, local_slot->header.mem_size);
+
+                    // Reconfigure local.
+                    msg_base = local_mr_addr + mr_offset;
 
                     //
                     // 2. Prepare header. 

@@ -4,6 +4,9 @@
  * Project SOREN
  */
 
+
+#include "timer.hh"
+
 #include "logger.hh"
 #include "replicator.hh"
 
@@ -18,7 +21,7 @@
 #include <iostream>
 
 
-const int32_t BATCH_SZ = 4;
+const int32_t BATCH_SZ = 1;
 
 int workerfDivWriter(
     soren::WorkerThread& arg_wrkr_inst,
@@ -125,7 +128,22 @@ int workerfDivWriter(
                                 // spawner.
 
     // Batch related
+    int32_t cur_batchsz = 0;
+    int32_t early_batch = BATCH_SZ;
 
+    int32_t batch_mr_ofs[BATCH_SZ] = { 0, };
+    uintptr_t batch_msg_base[BATCH_SZ] = { 0, };
+    size_t batch_msgsz = 0;
+
+    soren::LocalSlot* local_slot;
+    int32_t batch_slotidx[BATCH_SZ] = { 0, };
+
+    TIMESTAMP_T latest_batch_ts;
+    TIMESTAMP_T curr_ts;
+
+    GET_TIMESTAMP(latest_batch_ts);
+
+    //
     // -- The main loop starts from here. --
     while (1) {
 
@@ -159,6 +177,14 @@ int workerfDivWriter(
 
             default:
 
+                GET_TIMESTAMP(curr_ts);
+                if (ELAPSED_NSEC(latest_batch_ts, curr_ts) > (20000 * BATCH_SZ)) {
+                    
+                    if (early_batch > 1) early_batch -= 1;
+                    else early_batch = 1;
+                }
+                else early_batch = BATCH_SZ;
+
                 while (arg_slots[curproc_idx].ready) {
                     n_prop += 1;
                     
@@ -170,9 +196,9 @@ int workerfDivWriter(
 
                     uintptr_t local_mr_addr     = reinterpret_cast<uintptr_t>(wrkr_mr->addr);
                     uintptr_t msg_base          = local_mr_addr + mr_offset;
-                    uintptr_t remote_mr_addr;
+                    // uintptr_t remote_mr_addr;
 
-                    soren::LocalSlot* local_slot    = &(arg_slots[curproc_idx]);
+                    local_slot                  = &(arg_slots[curproc_idx]);
                     soren::SlotCanary slot_canary;
                     uint32_t hashed_key;
 
@@ -220,6 +246,9 @@ int workerfDivWriter(
                     //
                     // 1. Alignment : 64 byte aligned by default.
                     soren::prepareNextAlignedOffset(mr_offset, mr_linfree, local_slot->header.mem_size);
+                    
+                    // Reconfigure local.
+                    msg_base = local_mr_addr + mr_offset;
 
                     //
                     // 2. Prepare header. 
@@ -249,43 +278,182 @@ int workerfDivWriter(
                         sizeof(struct soren::SlotCanary)
                     );
 
+                    batch_msg_base[cur_batchsz] = msg_base;
+                    batch_mr_ofs[cur_batchsz] = mr_offset;
+                    
+                    batch_slotidx[cur_batchsz] = curproc_idx;
+
+                    cur_batchsz += 1;
+
+                    // SOREN_LOGGER_INFO(worker_logger, "Current batch size: {}, msg_base: {}, mr_off: {}", cur_batchsz, msg_base, mr_offset);
+
+
                     // 
                     // 5. Replicate the data to remotes.
+
+                    /*
+                    if (cur_batchsz == BATCH_SZ) {
+
+                        SOREN_LOGGER_INFO(worker_logger, "Batch sent!: {}", cur_batchsz);
+
+                        for (int nid = 0; nid < arg_npl; nid++) {
+                            if (nid == arg_nid) continue;
+                            
+                            //
+                            // Update to per-remote contents. Currently the header section (of MR) holds
+                            // local buffer address. This should be updated to the address of remote MR, 
+                            // that points to the starting address of the replicated data.
+                            remote_mr_addr = reinterpret_cast<uintptr_t>(mrs[nid]->addr);
+                            // reinterpret_cast<struct soren::HeaderSlot*>(msg_base)->mem_addr
+                            //     = remote_mr_addr + mr_offset + sizeof(struct soren::HeaderSlot);
+
+                            // if (local_slot->header.key_addr == 0)
+                            //     reinterpret_cast<struct soren::HeaderSlot*>(msg_base)->key_addr = 0;
+
+                            // else
+                            //     reinterpret_cast<struct soren::HeaderSlot*>(msg_base)->key_addr
+                            //         = remote_mr_addr + mr_offset + sizeof(struct soren::HeaderSlot) 
+                            //             + (local_slot->header.key_addr - local_slot->header.mem_addr);
+
+                            for (int batch_idx = 0; batch_idx < BATCH_SZ; batch_idx++) {
+
+                                // SOREN_LOGGER_INFO(worker_logger, "Recovering... idx {} msg_base: {}, mr_off: {}", batch_idx, batch_msg_base[batch_idx], batch_mr_ofs[batch_idx]);
+
+                                uintptr_t local_base = batch_msg_base[batch_idx];
+                                reinterpret_cast<struct soren::HeaderSlot*>(local_base)->mem_addr
+                                    = remote_mr_addr + batch_mr_ofs[batch_idx] + sizeof(struct soren::HeaderSlot);
+
+                                uintptr_t key_addr = reinterpret_cast<struct soren::HeaderSlot*>(local_base)->key_addr;
+                                uintptr_t mem_addr = reinterpret_cast<struct soren::HeaderSlot*>(local_base)->mem_addr;
+
+                                if (key_addr == 0)
+                                    reinterpret_cast<struct soren::HeaderSlot*>(local_base)->key_addr = 0;
+                                else
+                                    reinterpret_cast<struct soren::HeaderSlot*>(local_base)->key_addr
+                                        = remote_mr_addr + batch_mr_ofs[batch_idx] + sizeof(struct soren::HeaderSlot) 
+                                            + (key_addr - mem_addr);
+                            }
+
+                            if (soren::rdmaPost(
+                                    IBV_WR_RDMA_WRITE, 
+                                    qps[nid],                   // Local Replicator's Queue Pair
+                                    // msg_base,                   // Local buffer address
+                                    batch_msg_base[0],
+                                    // (sizeof(struct soren::HeaderSlot) 
+                                    //     + local_slot->header.mem_size + sizeof(struct soren::SlotCanary)),   
+                                    ((batch_msg_base[BATCH_SZ - 1] - batch_msg_base[0]) + (sizeof(struct soren::HeaderSlot) 
+                                            + local_slot->header.mem_size + sizeof(struct soren::SlotCanary))),   
+                                                                // Buffer size
+                                    wrkr_mr->lkey,              // Local MR LKey
+                                    // remote_mr_addr + mr_offset,
+                                    (remote_mr_addr + batch_mr_ofs[0]),
+                                                                // Remote's address
+                                    mrs[nid]->rkey              // Remotes RKey
+                                    )
+                                != 0)
+                                SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Write failed.", arg_hdl);
+
+                            // Wait until the RDMA write is finished.
+                            if (soren::waitSingleSCqe(qps[nid]) == -1)
+                                SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Write failed. (CQ)", arg_hdl);
+                        }
+                    }
+                    */
+                    
+                    
+                    mr_offset += (sizeof(struct soren::HeaderSlot) + local_slot->header.mem_size + sizeof(struct soren::SlotCanary));
+                    mr_linfree = soren::BUF_SIZE - mr_offset;
+
+                    log_stat->offset = mr_offset;
+                    log_stat->n_prop = n_prop;
+
+                    //
+                    // Reset the MR.
+                    // std::memset(
+                    //     reinterpret_cast<void*>(msg_base), 
+                    //     0, (sizeof(struct soren::HeaderSlot) + local_slot->header.mem_size + sizeof(struct soren::SlotCanary)));
+
+                    // arg_slots[curproc_idx].ready = false;
+                    // arg_slots[soren::MAX_NSLOTS - 1].procs += 1;
+
+                    /*
+                    if (cur_batchsz == BATCH_SZ) {
+                        for (int batch_idx = 0; batch_idx < BATCH_SZ; batch_idx++) {
+
+                            arg_slots[batch_slotidx[batch_idx]].ready = false;
+                            arg_slots[batch_slotidx[batch_idx]].footprint = soren::FOOTPRINT_REPLICATED;
+
+                            arg_slots[soren::MAX_NSLOTS - 1].procs += 1;
+                        }
+
+                        cur_batchsz = 0;
+                        batch_msgsz = 0;
+
+                        GET_TIMESTAMP(latest_batch_ts);
+                    }
+                    */
+
+                //    SOREN_LOGGER_INFO(worker_logger, "Item recorded: slot idx {}, current batch: {}", curproc_idx, cur_batchsz);
+
+                    curproc_idx = (curproc_idx == (soren::MAX_NSLOTS - 1)) ? 0 : curproc_idx + 1;
+
+                    if ((curproc_idx == 0) || (cur_batchsz == BATCH_SZ)) {
+                        early_batch = cur_batchsz;
+                        break;
+                    }
+
+                    if (cur_batchsz == early_batch)
+                        break;
+                }
+
+                if (cur_batchsz == early_batch) {
+
+                    early_batch = cur_batchsz;
+
+                    uintptr_t remote_mr_addr;
+                    // SOREN_LOGGER_INFO(worker_logger, "Batch sent!: {}", cur_batchsz);
+
                     for (int nid = 0; nid < arg_npl; nid++) {
                         if (nid == arg_nid) continue;
-                        if (local_slot->header.reqs.req_type == soren::REQTYPE_DEPCHECK_WAIT) {
-                            if (local_slot->header.owner != nid)
-                                // continue;
-                                ;
-                        }
                         
                         //
                         // Update to per-remote contents. Currently the header section (of MR) holds
                         // local buffer address. This should be updated to the address of remote MR, 
                         // that points to the starting address of the replicated data.
                         remote_mr_addr = reinterpret_cast<uintptr_t>(mrs[nid]->addr);
-                        reinterpret_cast<struct soren::HeaderSlot*>(msg_base)->mem_addr
-                            = remote_mr_addr + mr_offset + sizeof(struct soren::HeaderSlot);
 
-                        if (local_slot->header.key_addr == 0)
-                            reinterpret_cast<struct soren::HeaderSlot*>(msg_base)->key_addr = 0;
+                        for (int batch_idx = 0; batch_idx < early_batch; batch_idx++) {
 
-                        else
-                            reinterpret_cast<struct soren::HeaderSlot*>(msg_base)->key_addr
-                                = remote_mr_addr + mr_offset + sizeof(struct soren::HeaderSlot) 
-                                    + (local_slot->header.key_addr - local_slot->header.mem_addr);
+                            // SOREN_LOGGER_INFO(worker_logger, "Recovering... idx {} msg_base: {}, mr_off: {}", batch_idx, batch_msg_base[batch_idx], batch_mr_ofs[batch_idx]);
 
-                        // std::atomic_thread_fence(std::memory_order_release);
+                            uintptr_t local_base = batch_msg_base[batch_idx];
+                            reinterpret_cast<struct soren::HeaderSlot*>(local_base)->mem_addr
+                                = remote_mr_addr + batch_mr_ofs[batch_idx] + sizeof(struct soren::HeaderSlot);
+
+                            uintptr_t key_addr = reinterpret_cast<struct soren::HeaderSlot*>(local_base)->key_addr;
+                            uintptr_t mem_addr = reinterpret_cast<struct soren::HeaderSlot*>(local_base)->mem_addr;
+
+                            if (key_addr == 0)
+                                reinterpret_cast<struct soren::HeaderSlot*>(local_base)->key_addr = 0;
+                            else
+                                reinterpret_cast<struct soren::HeaderSlot*>(local_base)->key_addr
+                                    = remote_mr_addr + batch_mr_ofs[batch_idx] + sizeof(struct soren::HeaderSlot) 
+                                        + (key_addr - mem_addr);
+                        }
 
                         if (soren::rdmaPost(
                                 IBV_WR_RDMA_WRITE, 
                                 qps[nid],                   // Local Replicator's Queue Pair
-                                msg_base,                   // Local buffer address
-                                (sizeof(struct soren::HeaderSlot) 
-                                    + local_slot->header.mem_size + sizeof(struct soren::SlotCanary)),              
+                                // msg_base,                   // Local buffer address
+                                batch_msg_base[0],
+                                // (sizeof(struct soren::HeaderSlot) 
+                                //     + local_slot->header.mem_size + sizeof(struct soren::SlotCanary)),   
+                                ((batch_msg_base[early_batch - 1] - batch_msg_base[0]) + (sizeof(struct soren::HeaderSlot) 
+                                        + local_slot->header.mem_size + sizeof(struct soren::SlotCanary))),
                                                             // Buffer size
                                 wrkr_mr->lkey,              // Local MR LKey
-                                remote_mr_addr + mr_offset,
+                                // remote_mr_addr + mr_offset,
+                                (remote_mr_addr + batch_mr_ofs[0]),
                                                             // Remote's address
                                 mrs[nid]->rkey              // Remotes RKey
                                 )
@@ -295,28 +463,23 @@ int workerfDivWriter(
                         // Wait until the RDMA write is finished.
                         if (soren::waitSingleSCqe(qps[nid]) == -1)
                             SOREN_LOGGER_ERROR(worker_logger, "Replicator({}) RDMA Write failed. (CQ)", arg_hdl);
+
                     }
 
-                    mr_offset += (sizeof(struct soren::HeaderSlot) + local_slot->header.mem_size + sizeof(struct soren::SlotCanary));
-                    mr_linfree = soren::BUF_SIZE - mr_offset;
-
-                    log_stat->offset = mr_offset;
-                    log_stat->n_prop = n_prop;
-
                     //
-                    // Reset the MR.
-                    std::memset(
-                        reinterpret_cast<void*>(msg_base), 
-                        0, (sizeof(struct soren::HeaderSlot) + local_slot->header.mem_size + sizeof(struct soren::SlotCanary)));
+                    // Release
+                    for (int batch_idx = 0; batch_idx < early_batch; batch_idx++) {
 
-                    arg_slots[curproc_idx].ready = false;
-                    arg_slots[soren::MAX_NSLOTS - 1].procs += 1;
+                        arg_slots[batch_slotidx[batch_idx]].ready = false;
+                        arg_slots[batch_slotidx[batch_idx]].footprint = soren::FOOTPRINT_REPLICATED;
 
-                    curproc_idx = (curproc_idx == (soren::MAX_NSLOTS - 1)) ? 0 : curproc_idx + 1;
+                        arg_slots[soren::MAX_NSLOTS - 1].procs += 1;
+                    }
 
-                    local_slot->footprint = soren::FOOTPRINT_REPLICATED;   // Mark as invalid. 
+                    cur_batchsz = 0;
+                    early_batch = BATCH_SZ;
 
-                    // SOREN_LOGGER_INFO(worker_logger, "Next offset: ({})", mr_offset);
+                    GET_TIMESTAMP(latest_batch_ts);
                 }
 
                 arg_wrkr_inst.wrk_sig.store(soren::SIG_READY);

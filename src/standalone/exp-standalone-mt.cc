@@ -95,6 +95,9 @@ int main(int argc, char *argv[]) {
                         0, soren::REQTYPE_REPLICATE
                     );
                     soren::__MARK_TS_AFTER__(idx);
+
+                    if (nth_req % 10000 == 0)
+                        std::cout <<"Latest cnt: " << nth_req << std::endl;
                 }
             },
             nreq_for_thread, PAYLOAD_SZ, KEY_SZ
