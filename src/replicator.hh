@@ -23,8 +23,6 @@ namespace soren {
         uint32_t        node_id;
         uint32_t        nplayers;
 
-        uint32_t        sub_par;
-
         uint32_t        propose_cnt;
         uint32_t        depcheck_cnt;
 
@@ -54,7 +52,7 @@ namespace soren {
         int __findNeighborAliveWorkerHandle(uint32_t);
 
     public:
-        Replicator(uint32_t, uint16_t, uint32_t);
+        Replicator(uint32_t, uint16_t);
         ~Replicator();
 
         // Memory Regions (MRs) and Queue Pairs (QPs) are registered to this handle maps:
@@ -85,3 +83,19 @@ namespace soren {
         void doReleaseWait(uint8_t*, size_t, uint8_t*, size_t, uint32_t);
     };
 }
+
+
+
+//
+// Local worker threads.
+int workerfDivWriter(
+    soren::WorkerThread&, soren::LocalSlot*, const int, soren::DependencyChecker&,
+        std::map<uint32_t, struct ibv_mr*>&, std::map<uint32_t, struct ibv_qp*>&,
+        const uint32_t, const uint32_t
+);
+
+int workerfDivDepchecker(
+    soren::WorkerThread&, soren::LocalSlot*, const int, soren::DependencyChecker&,
+        std::map<uint32_t, struct ibv_mr*>&, std::map<uint32_t, struct ibv_qp*>&,
+        const uint32_t, const uint32_t
+);

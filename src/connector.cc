@@ -6,10 +6,11 @@
 
 #include "hartebeest-wrapper.hh"
 #include "connector.hh"
+#include "player.hh"
 
 #include "commons.hh"
 
-soren::Connector::Connector(uint32_t arg_subpar) {
+soren::Connector::Connector() {
     hbwrapper::initHartebeest();
     hbwrapper::initRdmaConfigurator();
     hbwrapper::initConfigFileExchanger();
@@ -24,47 +25,100 @@ soren::Connector::Connector(uint32_t arg_subpar) {
     uint8_t* buf_addr = nullptr;
 
     for (int pl_id = 0; pl_id < nplayers; pl_id++) {
-        for (int sp = 0; sp < arg_subpar; sp++) {
+        // for (int sp = 0; sp < arg_subpar; sp++) {
 
-            buf_addr = hbwrapper::allocateBuffer(BUF_SIZE, 64);
-            if (hbwrapper::registerMr(COMMON_PD, GET_MR_GLOBAL(pl_id, sp), buf_addr, BUF_SIZE) != 0) {
-                abort();
-            }
+        //     buf_addr = hbwrapper::allocateBuffer(BUF_SIZE, 64);
+        //     if (hbwrapper::registerMr(COMMON_PD, GET_MR_GLOBAL(pl_id, sp), buf_addr, BUF_SIZE) != 0) {
+        //         abort();
+        //     }
+        // }
+
+        buf_addr = hbwrapper::allocateBuffer(BUF_SIZE, 64);
+        if (hbwrapper::registerMr(COMMON_PD, GET_MR_GLOBAL(pl_id, DIV_WRITER), buf_addr, BUF_SIZE) != 0) {
+            abort();
         }
+
+        buf_addr = hbwrapper::allocateBuffer(BUF_SIZE, 64);
+        if (hbwrapper::registerMr(COMMON_PD, GET_MR_GLOBAL(pl_id, DIV_DEPCHECKER), buf_addr, BUF_SIZE) != 0) {
+            abort();
+        }
+
     }
 
     for (int pl_id = 0; pl_id < nplayers; pl_id++) {
 
-        for (int sp = 0; sp < arg_subpar; sp++) {
-            if (pl_id != node_id) {
-                hbwrapper::registerRcQp(
-                    COMMON_PD, 
-                    GET_QP_REPLICATOR(node_id, pl_id, sp),
-                    GET_SCQ_REPLICATOR(node_id, pl_id, sp),
-                    GET_RCQ_REPLICATOR(node_id, pl_id, sp)
-                    );
+        // for (int sp = 0; sp < arg_subpar; sp++) {
+        //     if (pl_id != node_id) {
+        //         hbwrapper::registerRcQp(
+        //             COMMON_PD, 
+        //             GET_QP_REPLICATOR(node_id, pl_id, sp),
+        //             GET_SCQ_REPLICATOR(node_id, pl_id, sp),
+        //             GET_RCQ_REPLICATOR(node_id, pl_id, sp)
+        //             );
                 
-                hbwrapper::registerRcQp(
-                    COMMON_PD,
-                    GET_QP_REPLAYER(pl_id, sp),
-                    GET_SCQ_REPLAYER(pl_id, sp),
-                    GET_RCQ_REPLAYER(pl_id, sp)
+        //         hbwrapper::registerRcQp(
+        //             COMMON_PD,
+        //             GET_QP_REPLAYER(pl_id, sp),
+        //             GET_SCQ_REPLAYER(pl_id, sp),
+        //             GET_RCQ_REPLAYER(pl_id, sp)
+        //         );
+        //     }
+        // }
+
+        if (pl_id != node_id) {
+            hbwrapper::registerRcQp(
+                COMMON_PD, 
+                GET_QP_REPLICATOR(node_id, pl_id, DIV_WRITER),
+                GET_SCQ_REPLICATOR(node_id, pl_id, DIV_WRITER),
+                GET_RCQ_REPLICATOR(node_id, pl_id, DIV_WRITER)
                 );
-            }
+            
+            hbwrapper::registerRcQp(
+                COMMON_PD,
+                GET_QP_REPLAYER(pl_id, DIV_WRITER),
+                GET_SCQ_REPLAYER(pl_id, DIV_WRITER),
+                GET_RCQ_REPLAYER(pl_id, DIV_WRITER)
+            );
+
+            hbwrapper::registerRcQp(
+                COMMON_PD, 
+                GET_QP_REPLICATOR(node_id, pl_id, DIV_DEPCHECKER),
+                GET_SCQ_REPLICATOR(node_id, pl_id, DIV_DEPCHECKER),
+                GET_RCQ_REPLICATOR(node_id, pl_id, DIV_DEPCHECKER)
+                );
+            
+            hbwrapper::registerRcQp(
+                COMMON_PD,
+                GET_QP_REPLAYER(pl_id, DIV_DEPCHECKER),
+                GET_SCQ_REPLAYER(pl_id, DIV_DEPCHECKER),
+                GET_RCQ_REPLAYER(pl_id, DIV_DEPCHECKER)
+            );
         }
     }
 
     if (hbwrapper::exchangeRdmaConfigs() != 1) abort();
 
     for (int pl_id = 0; pl_id < nplayers; pl_id++) {
-        for (int sp = 0; sp < arg_subpar; sp++) {
+        // for (int sp = 0; sp < arg_subpar; sp++) {
             
-            if (pl_id != node_id) {
-                hbwrapper::connectRcQps(
-                    GET_QP_REPLICATOR(node_id, pl_id, sp), pl_id, COMMON_PD, GET_QP_REPLAYER(node_id, sp));
-                hbwrapper::connectRcQps(
-                    GET_QP_REPLAYER(pl_id, sp), pl_id, COMMON_PD, GET_QP_REPLICATOR(pl_id, node_id, sp));
-            }
+        //     if (pl_id != node_id) {
+        //         hbwrapper::connectRcQps(
+        //             GET_QP_REPLICATOR(node_id, pl_id, sp), pl_id, COMMON_PD, GET_QP_REPLAYER(node_id, sp));
+        //         hbwrapper::connectRcQps(
+        //             GET_QP_REPLAYER(pl_id, sp), pl_id, COMMON_PD, GET_QP_REPLICATOR(pl_id, node_id, sp));
+        //     }
+        // }
+
+        if (pl_id != node_id) {
+            hbwrapper::connectRcQps(
+                GET_QP_REPLICATOR(node_id, pl_id, DIV_WRITER), pl_id, COMMON_PD, GET_QP_REPLAYER(node_id, DIV_WRITER));
+            hbwrapper::connectRcQps(
+                GET_QP_REPLAYER(pl_id, DIV_WRITER), pl_id, COMMON_PD, GET_QP_REPLICATOR(pl_id, node_id, DIV_WRITER));
+
+            hbwrapper::connectRcQps(
+                GET_QP_REPLICATOR(node_id, pl_id, DIV_DEPCHECKER), pl_id, COMMON_PD, GET_QP_REPLAYER(node_id, DIV_DEPCHECKER));
+            hbwrapper::connectRcQps(
+                GET_QP_REPLAYER(pl_id, DIV_DEPCHECKER), pl_id, COMMON_PD, GET_QP_REPLICATOR(pl_id, node_id, DIV_DEPCHECKER));
         }
     }
 }

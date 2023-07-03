@@ -26,10 +26,9 @@ void*   glob_replicator;    // Single global Replicator instance.
 
 
 /// @brief Allocates Connector instance at glob_connector.
-/// @param arg_subpar 
 /// @return 
-void* cwInitConnection(uint32_t arg_subpar) {
-    return reinterpret_cast<soren::Connector*>(new soren::Connector(arg_subpar));
+void* cwInitConnection() {
+    return reinterpret_cast<soren::Connector*>(new soren::Connector());
 }
 
 
@@ -53,7 +52,7 @@ int cwGetNumPlayers(void* arg_conn) {
 /// @param arg_subpar 
 void cwInitSoren(int (*arg_repfunc)(uint8_t*, size_t, int, void*)) {
 
-    glob_connector = cwInitConnection(2);
+    glob_connector = cwInitConnection();
 
     printf("Soren connection OK.\n");
 
@@ -68,7 +67,7 @@ void cwInitSoren(int (*arg_repfunc)(uint8_t*, size_t, int, void*)) {
     //
     // Initiate the replayer
     glob_replayer = reinterpret_cast<soren::Replayer*>(
-        new soren::Replayer(glob_node_id, glob_nplayers, 2));
+        new soren::Replayer(glob_node_id, glob_nplayers));
     
     //
     // Initiate the replicator. If this node ID is 'some_id', 
@@ -76,7 +75,7 @@ void cwInitSoren(int (*arg_repfunc)(uint8_t*, size_t, int, void*)) {
     // Before initiating Replicator worker threads,
     //  make sure that all replayers in a same node are initiated.
     glob_replicator = reinterpret_cast<soren::Replicator*>(
-        new soren::Replicator(glob_node_id, glob_nplayers, 2));
+        new soren::Replicator(glob_node_id, glob_nplayers));
 
     printf("Player instances initialized.\n");
 
@@ -91,14 +90,28 @@ void cwInitSoren(int (*arg_repfunc)(uint8_t*, size_t, int, void*)) {
     // the replications.
     //
     for (int nid = 0; nid < glob_nplayers; nid++) {
-        for (int sp = 0; sp < 2; sp++) {
-            if (nid != glob_node_id)            // For this node ID 'some_id', do not launch replayer,
-                                                // since it is 'some_id's responsibility to let data copied.
-                reinterpret_cast<soren::Replayer*>(glob_replayer)->doAddLocalMr(
-                    GET_MR_GLOBAL(nid, sp),     // Globally decided MR ID. Decided across the nodes.
-                    soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(nid, sp))
-                );
-        }
+        // for (int sp = 0; sp < 2; sp++) {
+        //     if (nid != glob_node_id)            // For this node ID 'some_id', do not launch replayer,
+        //                                         // since it is 'some_id's responsibility to let data copied.
+        //         reinterpret_cast<soren::Replayer*>(glob_replayer)->doAddLocalMr(
+        //             GET_MR_GLOBAL(nid, sp),     // Globally decided MR ID. Decided across the nodes.
+        //             soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(nid, sp))
+        //         );
+        // }
+
+        if (nid != glob_node_id)    // For this node ID 'some_id', do not launch replayer,
+                                    // since it is 'some_id's responsibility to let data copied.
+            reinterpret_cast<soren::Replayer*>(glob_replayer)->doAddLocalMr(
+                GET_MR_GLOBAL(nid, soren::DIV_WRITER),     // Globally decided MR ID. Decided across the nodes.
+                soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(nid, soren::DIV_WRITER))
+            );
+
+        if (nid != glob_node_id)    // For this node ID 'some_id', do not launch replayer,
+                                    // since it is 'some_id's responsibility to let data copied.
+            reinterpret_cast<soren::Replayer*>(glob_replayer)->doAddLocalMr(
+                GET_MR_GLOBAL(nid, soren::DIV_DEPCHECKER),     // Globally decided MR ID. Decided across the nodes.
+                soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(nid, soren::DIV_DEPCHECKER))
+            );
     }
 
     // Note that there is a single replication. 
@@ -110,11 +123,21 @@ void cwInitSoren(int (*arg_repfunc)(uint8_t*, size_t, int, void*)) {
 
     for (int nid = 0; nid < glob_nplayers; nid++) {
         if (nid != glob_node_id) {
-            for (int sp = 0; sp < 2; sp++)
-                reinterpret_cast<soren::Replayer*>(glob_replayer)->doLaunchPlayer(
-                        nid, sp, reinterpret_cast<soren::Replicator*>(glob_replicator),
-                        reinterpret_cast<int(*)(uint8_t*, size_t, int, void*)>(arg_repfunc)
-                    );
+            // for (int sp = 0; sp < 2; sp++)
+            //     reinterpret_cast<soren::Replayer*>(glob_replayer)->doLaunchPlayer(
+            //             nid, sp, reinterpret_cast<soren::Replicator*>(glob_replicator),
+            //             reinterpret_cast<int(*)(uint8_t*, size_t, int, void*)>(arg_repfunc)
+            //         );
+
+            reinterpret_cast<soren::Replayer*>(glob_replayer)->doLaunchPlayer(
+                    nid, soren::DIV_WRITER, reinterpret_cast<soren::Replicator*>(glob_replicator),
+                    reinterpret_cast<int(*)(uint8_t*, size_t, int, void*)>(arg_repfunc)
+                );
+
+            reinterpret_cast<soren::Replayer*>(glob_replayer)->doLaunchPlayer(
+                    nid, soren::DIV_DEPCHECKER, reinterpret_cast<soren::Replicator*>(glob_replicator),
+                    reinterpret_cast<int(*)(uint8_t*, size_t, int, void*)>(arg_repfunc)
+                );
         }
     }
 
@@ -133,49 +156,102 @@ void cwInitSoren(int (*arg_repfunc)(uint8_t*, size_t, int, void*)) {
     // Unlike the replicator who only needs Memory Region (for polling),
     // the replicator threads should have both MRs and QPs.
     for (int nid = 0; nid < glob_nplayers; nid++) {
-        for (int sp = 0; sp < 2; sp++) {
-            if (nid == glob_node_id) {                      // For this node ID 'some_id', 
-                                                            // register a local MR.
-                reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddLocalMr(    
-                    GET_MR_GLOBAL(glob_node_id, sp),        // using globally decided MR ID, decided across the nodes.
-                    soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(glob_node_id, sp))); 
-                        // Replicator's MR
-            }
 
-            if (nid != glob_node_id) { // Queue Pair for others to send.
-                reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddLocalQp(
-                    GET_QP_REPLICATOR(glob_node_id, nid, sp), 
-                    soren::hbwrapper::getLocalQp(GET_QP_REPLICATOR(glob_node_id, nid, sp)));
+        if (nid == glob_node_id) {                                                  // For this node ID 'some_id', 
+                                                                                    // register a local MR.
+            reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddLocalMr(    
+                GET_MR_GLOBAL(glob_node_id, soren::DIV_WRITER),                                    // using globally decided MR ID, decided across the nodes.
+                soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(glob_node_id, soren::DIV_WRITER)));     // Replicator's MR
 
-                // Now, the replicator should hold additional information such as 
-                // remote's Memory Region RKEY, starting address, and size.
-                // Without these information, any RDMA read or writes will fail. 
-                //
-                // The Connector module will have all RDMA information ready 
-                // thanks to Hartebeest. 
-                // doAddRemoteMr() inserts remote Replicator's Memory Region information
-                // in ibv_mr struture. This is minimally filled. Only <rkey, addr, length>
-                // is valid (if not local).
-                //
-
-                reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddRemoteMr(
-                    REMOTE_REPLAYER_MR_2_LOCAL(GET_MR_GLOBAL(nid, sp), nid, sp), 
-                    soren::hbwrapper::getRemoteMinimalMr(
-                        nid, soren::COMMON_PD, GET_MR_GLOBAL(glob_node_id, sp)
-                    )
-                );
-            }
+            reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddLocalMr(    
+                GET_MR_GLOBAL(glob_node_id, soren::DIV_DEPCHECKER),                                 // using globally decided MR ID, decided across the nodes.
+                soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(glob_node_id, soren::DIV_DEPCHECKER)));  // Replicator's MR
         }
+
+        if (nid != glob_node_id) {
+            
+            // Queue Pair for others to send.
+
+            // Now, the replicator should hold additional information such as 
+            // remote's Memory Region RKEY, starting address, and size.
+            // Without these information, any RDMA read or writes will fail. 
+            //
+            // The Connector module will have all RDMA information ready 
+            // thanks to Hartebeest. 
+            // doAddRemoteMr() inserts remote Replicator's Memory Region information
+            // in ibv_mr struture. This is minimally filled. Only <rkey, addr, length>
+            // is valid (if not local).
+            //
+
+            reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddLocalQp(
+                GET_QP_REPLICATOR(glob_node_id, nid, soren::DIV_WRITER), 
+                soren::hbwrapper::getLocalQp(GET_QP_REPLICATOR(glob_node_id, nid, soren::DIV_WRITER)));
+
+            reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddRemoteMr(
+                REMOTE_REPLAYER_MR_2_LOCAL(GET_MR_GLOBAL(nid, soren::DIV_WRITER), nid, soren::DIV_WRITER), 
+                soren::hbwrapper::getRemoteMinimalMr(
+                    nid, soren::COMMON_PD, GET_MR_GLOBAL(glob_node_id, soren::DIV_WRITER)
+                )
+            );
+
+
+            reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddLocalQp(
+                GET_QP_REPLICATOR(glob_node_id, nid, soren::DIV_DEPCHECKER), 
+                soren::hbwrapper::getLocalQp(GET_QP_REPLICATOR(glob_node_id, nid, soren::DIV_DEPCHECKER)));
+
+            reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddRemoteMr(
+                REMOTE_REPLAYER_MR_2_LOCAL(GET_MR_GLOBAL(nid, soren::DIV_DEPCHECKER), nid, soren::DIV_DEPCHECKER), 
+                soren::hbwrapper::getRemoteMinimalMr(
+                    nid, soren::COMMON_PD, GET_MR_GLOBAL(glob_node_id, soren::DIV_DEPCHECKER)
+                )
+            );
+
+        }
+
+        // for (int sp = 0; sp < 2; sp++) {
+        //     if (nid == glob_node_id) {                      // For this node ID 'some_id', 
+        //                                                     // register a local MR.
+        //         reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddLocalMr(    
+        //             GET_MR_GLOBAL(glob_node_id, sp),        // using globally decided MR ID, decided across the nodes.
+        //             soren::hbwrapper::getLocalMr(GET_MR_GLOBAL(glob_node_id, sp))); 
+        //                 // Replicator's MR
+        //     }
+
+        //     if (nid != glob_node_id) { // Queue Pair for others to send.
+        //         reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddLocalQp(
+        //             GET_QP_REPLICATOR(glob_node_id, nid, sp), 
+        //             soren::hbwrapper::getLocalQp(GET_QP_REPLICATOR(glob_node_id, nid, sp)));
+
+        //         // Now, the replicator should hold additional information such as 
+        //         // remote's Memory Region RKEY, starting address, and size.
+        //         // Without these information, any RDMA read or writes will fail. 
+        //         //
+        //         // The Connector module will have all RDMA information ready 
+        //         // thanks to Hartebeest. 
+        //         // doAddRemoteMr() inserts remote Replicator's Memory Region information
+        //         // in ibv_mr struture. This is minimally filled. Only <rkey, addr, length>
+        //         // is valid (if not local).
+        //         //
+
+        //         reinterpret_cast<soren::Replicator*>(glob_replicator)->doAddRemoteMr(
+        //             REMOTE_REPLAYER_MR_2_LOCAL(GET_MR_GLOBAL(nid, sp), nid, sp), 
+        //             soren::hbwrapper::getRemoteMinimalMr(
+        //                 nid, soren::COMMON_PD, GET_MR_GLOBAL(glob_node_id, sp)
+        //             )
+        //         );
+        //     }
+        // }
     }
 
     //
     // Launch the replicator threads. If this node ID is 'some_id', 
-    for (int sp = 0; sp < 2; sp++)
-        reinterpret_cast<soren::Replicator*>(glob_replicator)->doLaunchPlayer(glob_nplayers, sp);
+    // for (int sp = 0; sp < 2; sp++)
+    //     reinterpret_cast<soren::Replicator*>(glob_replicator)->doLaunchPlayer(glob_nplayers, sp);
 
-    printf("Replicator threads launched.\n");
-    
-    printf("Soren initialized.\n");
+    reinterpret_cast<soren::Replicator*>(glob_replicator)->doLaunchPlayer(glob_nplayers, soren::DIV_WRITER);
+    reinterpret_cast<soren::Replicator*>(glob_replicator)->doLaunchPlayer(glob_nplayers, soren::DIV_DEPCHECKER);
+
+    printf("Replicator threads launched.\nSoren initialized.\n");
 }
 
 void cwPropose(uint8_t* arg_memaddr, size_t arg_memsz, uint8_t* arg_keypref, size_t arg_keysz, uint32_t arg_hashval) {

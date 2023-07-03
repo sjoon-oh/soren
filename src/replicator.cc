@@ -17,6 +17,27 @@
 #include <cstdio>
 #include <iostream>
 
+
+
+// //
+// // Local worker threads.
+// // Forward decls.
+// int workerfDivWriter(
+//     soren::WorkerThread&, soren::LocalSlot*, const int, soren::DependencyChecker&,
+//         std::map<uint32_t, struct ibv_mr*>&, std::map<uint32_t, struct ibv_qp*>&,
+//         const uint32_t, const uint32_t
+// );
+
+
+
+// int workerfDivDepchecker(
+//     soren::WorkerThread&, soren::LocalSlot*, const int, soren::DependencyChecker&,
+//         std::map<uint32_t, struct ibv_mr*>&, std::map<uint32_t, struct ibv_qp*>&,
+//         const uint32_t, const uint32_t
+// );
+
+
+
 //
 // Replicator methods
 namespace soren {
@@ -80,10 +101,8 @@ int soren::Replicator::__findNeighborAliveWorkerHandle(uint32_t arg_hdl) {
 /// @param arg_nid 
 /// @param arg_players 
 /// @param arg_subpar 
-soren::Replicator::Replicator(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_subpar = 2)
-    : node_id(arg_nid), nplayers(arg_players), sub_par(arg_subpar) {
-        if (arg_subpar > MAX_SUBPAR)
-            sub_par = MAX_SUBPAR;
+soren::Replicator::Replicator(uint32_t arg_nid, uint16_t arg_players)
+    : node_id(arg_nid), nplayers(arg_players) {
         
         propose_cnt = 0;
         depcheck_cnt = 0;
@@ -193,13 +212,24 @@ bool soren::Replicator::isWorkerAlive(uint32_t arg_hdl) {
 /// @param arg_nplayers 
 /// @param arg_cur_sp 
 /// @return 
-int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
+int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_div) {
 
     int handle = __findEmptyWorkerHandle();         // Find the next index with unused WorkerThread array.
     WorkerThread& wrkr_inst = workers.at(handle);
 
+    // Is valid?
+    switch (arg_div) {
+        case DIV_WRITER: break;
+        case DIV_DEPCHECKER: break;
+        default:
+            abort();
+    }
+
+    
+
     //
     // Initiate a worker thread here.
+    /*
     std::thread player_thread(
         [](
             WorkerThread& arg_wrkr_inst,
@@ -572,12 +602,36 @@ int soren::Replicator::doLaunchPlayer(uint32_t arg_nplayers, int arg_cur_sp) {
             std::ref(dep_checker),                  // Dependency checker, local member.
             std::ref(mr_hdls), 
             std::ref(qp_hdls),
-            node_id, arg_nplayers, arg_cur_sp
+            node_id, arg_nplayers, arg_div
     );
+    */
 
-    // Register to the fixed array, workers. 
-    wrkr_inst.wrkt        = std::move(player_thread);
-    wrkr_inst.wrkt_nhdl   = wrkr_inst.wrkt.native_handle();
+
+    if (arg_div == DIV_WRITER) {
+        std::thread player_thread(
+            workerfDivWriter, 
+            std::ref(workers.at(handle)), wrkr_inst.wrkspace, handle,
+            std::ref(dep_checker), std::ref(mr_hdls), std::ref(qp_hdls),
+            node_id, arg_nplayers
+        );
+
+        // Register to the fixed array, workers. 
+        wrkr_inst.wrkt        = std::move(player_thread);
+        wrkr_inst.wrkt_nhdl   = wrkr_inst.wrkt.native_handle();
+    }
+
+    else {
+        std::thread player_thread(
+            workerfDivDepchecker, 
+            std::ref(workers.at(handle)), wrkr_inst.wrkspace, handle,
+            std::ref(dep_checker), std::ref(mr_hdls), std::ref(qp_hdls),
+            node_id, arg_nplayers
+        );
+
+        // Register to the fixed array, workers. 
+        wrkr_inst.wrkt        = std::move(player_thread);
+        wrkr_inst.wrkt_nhdl   = wrkr_inst.wrkt.native_handle();
+    }
 
     // Bye son!
     wrkr_inst.wrkt.detach();

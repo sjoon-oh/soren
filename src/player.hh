@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 
 #include <mutex>
 #include <array>
@@ -26,7 +27,6 @@
 namespace soren {
 
     const int MAX_NWORKER   = 8;
-    const int MAX_SUBPAR    = 8;
 
     const int MAX_REPLICATOR_WORKER = MAX_NWORKER / 2;
     const int MAX_REPLAYER_WORKER = MAX_NWORKER;
@@ -35,12 +35,17 @@ namespace soren {
 
     enum {
         SIG_PAUSE       = 0x00,
-        SIG_SELFRET    = 0x02,
+        SIG_SELFRET     = 0x02,
         SIG_CONT,
         SIG_PROPOSE     = 0xff,
         SIG_WORKEND,
         SIG_READY,
         SIG_NOTIFIED,
+    };
+
+    enum {
+        DIV_WRITER      = 0x00,
+        DIV_DEPCHECKER  = 0x01
     };
 
     struct log_entry {

@@ -82,10 +82,9 @@ int soren::Replayer::__findNeighborAliveWorkerHandle(uint32_t arg_hdl) {
 /// @param arg_players 
 /// @param arg_ranger 
 /// @param arg_subpar 
-soren::Replayer::Replayer(uint32_t arg_nid, uint16_t arg_players, uint32_t arg_subpar = 1) : 
-    node_id(arg_nid), nplayers(arg_players), sub_par(arg_subpar) {
-    if (arg_subpar > MAX_SUBPAR)
-        sub_par = MAX_SUBPAR;
+soren::Replayer::Replayer(uint32_t arg_nid, uint16_t arg_players)
+    : node_id(arg_nid), nplayers(arg_players) {
+
 }
 
 soren::Replayer::~Replayer() { }
@@ -143,12 +142,19 @@ void soren::Replayer::doForceKillWorker(uint32_t arg_hdl) {
 /// @param arg_cur_sp 
 /// @return 
 int soren::Replayer::doLaunchPlayer(
-        uint32_t arg_from_nid, int arg_cur_sp, Replicator* arg_replicator,
+        uint32_t arg_from_nid, int arg_div, Replicator* arg_replicator,
         std::function<int(uint8_t*, size_t, int, void*)> arg_repfunc
     ) {
 
     int handle = __findEmptyWorkerHandle();         // Find the next index with unused WorkerThread array.
     WorkerThread& wrkr_inst = workers.at(handle);
+
+    switch (arg_div) {
+        case DIV_WRITER: break;
+        case DIV_DEPCHECKER: break;
+        default:
+            abort();
+    }
 
     //
     // Initiate a worker thread here.
@@ -164,7 +170,7 @@ int soren::Replayer::doLaunchPlayer(
             
             const uint32_t arg_nid,                             // Node ID
             const uint32_t arg_from_nid,                        // Node ID that sends data from.
-            const int arg_current_sp,                           // Sub partition, (in case config changes.)
+            const int arg_curdiv,                               // 
             Replicator* arg_replicator,
             std::function<int(uint8_t*, size_t, int, void*)> arg_replayf
         ) {
@@ -187,7 +193,7 @@ int soren::Replayer::doLaunchPlayer(
 
             //
             // Prepare resources for RDMA operations.
-            uint32_t wrkr_mr_id = GET_MR_GLOBAL(arg_from_nid, arg_current_sp);
+            uint32_t wrkr_mr_id = GET_MR_GLOBAL(arg_from_nid, arg_curdiv);
             struct ibv_mr* wrkr_mr = arg_mr_hdls.find(wrkr_mr_id)->second;
 
             //
@@ -354,7 +360,7 @@ int soren::Replayer::doLaunchPlayer(
             std::ref(wrkr_inst.wrk_sig), 
             wrkr_inst.wrkspace, handle,
             std::ref(mr_hdls),
-            node_id, arg_from_nid, arg_cur_sp, arg_replicator, arg_repfunc
+            node_id, arg_from_nid, arg_div, arg_replicator, arg_repfunc
     );
 
     // Register to the fixed array, workers. 

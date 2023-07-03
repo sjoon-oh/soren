@@ -26,7 +26,7 @@ extern "C" {
 
 #endif
 
-void*   cwInitConnection(uint32_t);             // C-wrapper for connection initialization.
+void*   cwInitConnection();             // C-wrapper for connection initialization.
 void    cwCleanConnection(void*);               
 
 int     cwGetNumPlayers(void*);

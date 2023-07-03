@@ -23,8 +23,6 @@ namespace soren {
         uint32_t        node_id;
         uint32_t        nplayers;
 
-        uint32_t        sub_par;    // Local sub partitions
-
         //
         // These resources are just borrowed (copied) version. 
         // Do not let any player to reallocate or release these resources.
@@ -46,7 +44,7 @@ namespace soren {
         int __findNeighborAliveWorkerHandle(uint32_t);
 
     public:
-        Replayer(uint32_t, uint16_t, uint32_t);
+        Replayer(uint32_t, uint16_t);
         ~Replayer();
 
         // Memory Regions (MRs) and Queue Pairs (QPs) are registered to this handle maps:

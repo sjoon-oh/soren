@@ -97,3 +97,20 @@ add_executable(
     ${SOREN_EXP_STANDALONE_SRCFILES}
 )
 target_link_libraries(${SOREN_EXP_STANDALONE} PUBLIC ${LIBSOREN})
+
+
+#
+# --------------------------------------
+# Target: SOREN_EXP_STANDALONE (Standalone Multi-threaded Test)
+set(SOREN_EXP_STANDALONE
+    soren-standalone-mt.demo)
+file(GLOB SOREN_EXP_STANDALONE_SRCFILES
+    CONFIGURE_DEPENDS 
+    ${CMAKE_SOURCE_DIR}/src/standalone/exp-standalone-mt.cc
+)
+
+add_executable(
+    ${SOREN_EXP_STANDALONE}  
+    ${SOREN_EXP_STANDALONE_SRCFILES}
+)
+target_link_libraries(${SOREN_EXP_STANDALONE} PUBLIC ${LIBSOREN})
