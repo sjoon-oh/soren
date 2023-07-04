@@ -47,4 +47,5 @@ namespace soren {
         uintptr_t, uint32_t, uint32_t, uintptr_t, uint32_t);
 
     int waitSingleSCqe(struct ibv_qp*);
+    int waitSingleSCqeStatus(struct ibv_qp*);
 }

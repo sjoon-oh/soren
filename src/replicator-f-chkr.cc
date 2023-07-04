@@ -41,8 +41,8 @@ int workerfDivDepchecker(
     // soren::Logger worker_logger(logger_name, log_fname);
 
     uint32_t    n_prop = 0;
-    int32_t     mr_offset = 128;
-    int32_t     mr_linfree = soren::BUF_SIZE - 128;
+    size_t      mr_offset = 128;
+    size_t      mr_linfree = soren::BUF_SIZE - 128;
     // Memory Region stores its actual log starting the offset 128 bytes.
     // Areas from 0 to 127 bytes are reserved for general purpose RDMA communication
     // buffer. This is necessary since nodes never use TCP anymore (after Hartebeest 

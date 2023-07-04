@@ -423,3 +423,20 @@ int soren::waitSingleSCqe(struct ibv_qp* arg_local_qp) {
     
     return nwc;
 }
+
+
+
+/// @brief Wait for the single element from SEND CQ.
+/// @param arg_local_qp 
+/// @return 
+int soren::waitSingleSCqeStatus(struct ibv_qp* arg_local_qp) {
+
+    struct ibv_wc   work_completion;
+    int             nwc;
+
+    do {
+        nwc = ibv_poll_cq(arg_local_qp->send_cq, 1, &work_completion);
+    } while (nwc == 0);
+    
+    return work_completion.status;
+}

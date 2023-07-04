@@ -40,6 +40,6 @@ namespace soren {
         int getNumPlayers();
     };
 
-    void prepareNextAlignedOffset(int&, int&, int);
+    void prepareNextAlignedOffset(size_t&, size_t&, size_t);
 
 }

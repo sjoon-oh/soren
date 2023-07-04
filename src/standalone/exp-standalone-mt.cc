@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < MAX_THREADS; i++) {
 
         std::thread wrkr(
-            [](size_t nreq_for_thread, int payload_sz, int key_sz) {
+            [](int thread_id, size_t nreq_for_thread, int payload_sz, int key_sz) {
 
                 //
                 // Initialize randomization device
@@ -82,6 +82,8 @@ int main(int argc, char *argv[]) {
 
                 Payload local_buffer;
                 int32_t idx;
+
+                std::cout <<"TID " << thread_id << " >> Expected to have " << nreq_for_thread << " requests." << std::endl;
 
                 for (size_t nth_req = 0; nth_req < nreq_for_thread; nth_req++) {
 
@@ -96,11 +98,13 @@ int main(int argc, char *argv[]) {
                     );
                     soren::__MARK_TS_AFTER__(idx);
 
-                    if (nth_req % 10000 == 0)
-                        std::cout <<"Latest cnt: " << nth_req << std::endl;
+                    if (nth_req % 50000 == 0)
+                        std::cout <<"TID " << thread_id << " >> Latest cnt: " << nth_req << std::endl;
                 }
+
+                std::cout <<"TID " << thread_id << " >> Returning." << std::endl;
             },
-            nreq_for_thread, PAYLOAD_SZ, KEY_SZ
+            i, nreq_for_thread, PAYLOAD_SZ, KEY_SZ
         );
         wrkr_threads.push_back(std::move(wrkr));
     }

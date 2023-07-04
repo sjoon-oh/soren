@@ -188,8 +188,8 @@ int soren::Replayer::doLaunchPlayer(
             // Areas from 0 to 127 bytes are reserved for general purpose RDMA communication
             // buffer. This is necessary since nodes never use TCP anymore (after Hartebeest 
             // exchange).
-            int32_t     mr_offset = 128;
-            int32_t     mr_linfree = BUF_SIZE - 128;
+            size_t      mr_offset = 128;
+            size_t      mr_linfree = BUF_SIZE - 128;
 
             //
             // Prepare resources for RDMA operations.

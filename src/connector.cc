@@ -134,7 +134,7 @@ int soren::Connector::getNodeId() {
 
 int soren::Connector::getNumPlayers() { return nplayers; }
 
-void soren::prepareNextAlignedOffset(int& arg_offs, int& arg_free, int arg_tarsize) {
+void soren::prepareNextAlignedOffset(size_t& arg_offs, size_t& arg_free, size_t arg_tarsize) {
                             
     arg_tarsize += (sizeof(struct HeaderSlot) + sizeof(struct SlotCanary));
 
