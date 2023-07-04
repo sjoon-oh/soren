@@ -305,15 +305,6 @@ void soren::Replicator::doPropose(
 
     workspace[slot_idx].ready                   = true;
 
-    // SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "doPropose request address: addr({}), keypref({}), diff({})", 
-    //     reinterpret_cast<uintptr_t>(arg_memaddr), 
-    //     reinterpret_cast<uintptr_t>(arg_keypref),
-    //     reinterpret_cast<uintptr_t>(arg_keypref) - reinterpret_cast<uintptr_t>(arg_memaddr)
-    //     );
-
-    // char* mem_peak = reinterpret_cast<char*>(arg_memaddr);
-    // SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "doPropose request peak: ({}), total_len: ({})", mem_peak, arg_memsz);
-
     if (arg_reqtype == REQTYPE_REPLICATE) {
         SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "doPropose: Waiting for idx: {} owned({}), hash: {}", slot_idx, owner_node, workspace[slot_idx].hashed_key);
         while (workspace[slot_idx].footprint != FOOTPRINT_REPLICATED)

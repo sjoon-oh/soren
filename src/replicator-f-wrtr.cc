@@ -136,7 +136,7 @@ int workerfDivWriter(
     size_t batch_msgsz = 0;
 
     soren::LocalSlot* local_slot;
-    int32_t batch_slotidx[BATCH_SZ] = { 0, };
+    uint32_t batch_slotidx[BATCH_SZ] = { 0, };
 
     TIMESTAMP_T latest_batch_ts;
     TIMESTAMP_T curr_ts;
@@ -202,7 +202,7 @@ int workerfDivWriter(
                     // Set the info.
 
                     uintptr_t local_mr_addr     = reinterpret_cast<uintptr_t>(wrkr_mr->addr);
-                    uintptr_t msg_base          = local_mr_addr + mr_offset;
+                    uintptr_t msg_base;
                     // uintptr_t remote_mr_addr;
 
                     local_slot                  = &(arg_slots[curproc_idx]);
@@ -251,9 +251,9 @@ int workerfDivWriter(
                     hashed_key                  = local_slot->hashed_key;
 
                     //
-                    // 1. Alignment : 64 byte aligned by default.
-                    soren::prepareNextAlignedOffset(mr_offset, mr_linfree, local_slot->header.mem_size);
-                    msg_base = local_mr_addr + mr_offset;  // Reconfigure local.
+                    // 1. Set message base.
+                    // soren::prepareNextAlignedOffset(mr_offset, mr_linfree, local_slot->header.mem_size);
+                    msg_base = local_mr_addr + mr_offset; 
 
                     //
                     // 2. Prepare header. 
@@ -288,10 +288,16 @@ int workerfDivWriter(
                     
                     batch_slotidx[cur_batchsz] = curproc_idx;
 
-                    cur_batchsz += 1;                    
-                    
+                    cur_batchsz += 1;
+
                     mr_offset += (sizeof(struct soren::HeaderSlot) + local_slot->header.mem_size + sizeof(struct soren::SlotCanary));
-                    mr_linfree = soren::BUF_SIZE - mr_offset;
+                    mr_linfree = (soren::BUF_SIZE - mr_offset);
+
+                    //
+                    // 5. Prepare the next offset
+                    soren::prepareNextAlignedOffset(mr_offset, mr_linfree, local_slot->header.mem_size);
+
+                    // SOREN_LOGGER_INFO(worker_logger, "Next offset mr_off: {}", mr_offset);
 
                     log_stat->offset = mr_offset;
                     log_stat->n_prop = n_prop;
@@ -302,7 +308,8 @@ int workerfDivWriter(
 
                     if ((curproc_idx == 0)                  // Case 1: Needs to be cleaned up
                         || (cur_batchsz == BATCH_SZ)        // Case 2: cur_batchsz hits the limit
-                        || (cur_batchsz > early_batch)     // Case 3: cur_batchsz exceeds the early_batch
+                        || (cur_batchsz > early_batch)      // Case 3: cur_batchsz exceeds the early_batch
+                        || (mr_offset == 128)               // Case 4: When circled.
                         ) {
                         early_batch = cur_batchsz;
                         break;
@@ -368,8 +375,8 @@ int workerfDivWriter(
                         // Wait until the RDMA write is finished.
                         if ((cq_retcode = soren::waitSingleSCqeStatus(qps[nid])) != 0) {
                             SOREN_LOGGER_ERROR(worker_logger, "RDMA Write failed. (CQ Status: {})", arg_hdl, cq_retcode);
-                            SOREN_LOGGER_ERROR(worker_logger, "Current stat: batch_msgsz({}), cur_batchsz({})", batch_msgsz, cur_batchsz);
-                            SOREN_LOGGER_ERROR(worker_logger, "Current stat: mr_offset({}), mr_linfree({})", mr_offset, mr_linfree);
+                            SOREN_LOGGER_ERROR(worker_logger, "Current stat: \nbatch_msgsz({}), cur_batchsz({})", batch_msgsz, cur_batchsz);
+                            SOREN_LOGGER_ERROR(worker_logger, "Current stat: \nmr_offset({}), mr_linfree({})", mr_offset, mr_linfree);
 
                             for (int batch_idx = 0; batch_idx < early_batch; batch_idx++) {
 
