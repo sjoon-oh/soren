@@ -21,7 +21,7 @@
 #include <iostream>
 
 
-const int32_t BATCH_SZ = 4;
+const int32_t BATCH_SZ = 1;
 
 int workerfDivWriter(
     soren::WorkerThread& arg_wrkr_inst,
@@ -183,7 +183,7 @@ int workerfDivWriter(
                 GET_TIMESTAMP(curr_ts);
                 elapsed_ts = ELAPSED_NSEC(latest_batch_ts, curr_ts);
 
-                if (elapsed_ts > (10000 * BATCH_SZ)) {
+                if (elapsed_ts > (5000 * BATCH_SZ)) {
                     
                     if (early_batch > 1) early_batch = cur_batchsz;
                     if (early_batch == 0)

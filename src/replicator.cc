@@ -17,12 +17,16 @@
 #include <cstdio>
 #include <iostream>
 
+#include <mutex>
+
 
 //
 // Replicator methods
 namespace soren {
     static LoggerFileOnly REPLICATOR_LOGGER("SOREN/REPLICATOR", "soren_replicator.log");
     // static Logger REPLICATOR_LOGGER("SOREN/REPLICATOR", "soren_replicator.log");
+
+    static std::mutex g_slot_lock;
 }
 
 
@@ -301,7 +305,8 @@ void soren::Replicator::doPropose(
     //
     // Insert to the dependency-checking hash table.
     // dep_checker.doTryInsert(&workspace[slot_idx], arg_keypref, arg_keysz);
-    dep_checker.doTryInsert(&workspace[slot_idx]);
+    if (owner_hdl == 0)
+        dep_checker.doTryInsert(&workspace[slot_idx]);
 
     workspace[slot_idx].ready                   = true;
 
@@ -344,6 +349,7 @@ void soren::Replicator::doReleaseWait(
     // Here eveything will be replicated.
     // Sub partition can 8 max.
     uint32_t owner_node = 0, owner_hdl = 0;
+    uint32_t procs;
 
     // owner_node = arg_hashval % 3;
     // owner_node = 1;
@@ -353,7 +359,7 @@ void soren::Replicator::doReleaseWait(
     LocalSlot* workspace = workers.at(owner_hdl).wrkspace;
     int pending_sidx = -1;
 
-    for (int idx = workspace[MAX_NSLOTS - 1].procs; idx < MAX_NSLOTS; idx++) {
+    for (int idx = 0; idx < MAX_NSLOTS; idx++) {
     // for (int idx = (MAX_NSLOTS - 1); idx >= 0; idx--) {
 
         // SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Scanning idx: {}", idx);
@@ -362,7 +368,16 @@ void soren::Replicator::doReleaseWait(
             && (workspace[idx].footprint != FOOTPRINT_REPLICATED)) {
 
             pending_sidx = idx;
-            break;
+
+            workspace[pending_sidx].header.reqs.req_type = REQTYPE_REPLICATE;
+            workspace[pending_sidx].footprint = FOOTPRINT_REPLICATED;
+
+            g_slot_lock.lock();
+            workspace[soren::MAX_NSLOTS - 1].procs += 1;
+            procs = workspace[soren::MAX_NSLOTS - 1].procs;
+
+            g_slot_lock.unlock();
+            // break;
         }
     }
     
@@ -374,7 +389,7 @@ void soren::Replicator::doReleaseWait(
     }
 
     // Release
-    workspace[pending_sidx].header.reqs.req_type = REQTYPE_REPLICATE;
+    // workspace[pending_sidx].header.reqs.req_type = REQTYPE_REPLICATE;
 
-    SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Wait released for hash: {}", arg_hashval);
+    SOREN_LOGGER_INFO(REPLICATOR_LOGGER, "Wait released for hash: {}, procs {}", arg_hashval, procs);
 }

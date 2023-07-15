@@ -305,10 +305,12 @@ int workerfDivDepchecker(
 
                     // Wait until the mark gets ACKed.
 
-                    SOREN_LOGGER_INFO(worker_logger, "Waiting depcheck for slot {}, hash: {}, owner({})", curproc_idx, hashed_key, owner);
-                    while (local_slot->header.reqs.req_type != soren::REQTYPE_REPLICATE)
-                        ;
-                    SOREN_LOGGER_INFO(worker_logger, "Received ACK for hash {} from owner({})", hashed_key, owner);
+                    SOREN_LOGGER_INFO(worker_logger, "Sent depcheck request for slot({}).", curproc_idx);
+
+                    // SOREN_LOGGER_INFO(worker_logger, "Waiting depcheck for slot {}, hash: {}, owner({})", curproc_idx, hashed_key, owner);
+                    // while (local_slot->header.reqs.req_type != soren::REQTYPE_REPLICATE)
+                    //     ;
+                    // SOREN_LOGGER_INFO(worker_logger, "Received ACK for hash {} from owner({})", hashed_key, owner);
                     
 
                     mr_offset += (sizeof(struct soren::HeaderSlot) + local_slot->header.mem_size + sizeof(struct soren::SlotCanary));
@@ -324,11 +326,11 @@ int workerfDivDepchecker(
                         0, (sizeof(struct soren::HeaderSlot) + local_slot->header.mem_size + sizeof(struct soren::SlotCanary)));
 
                     arg_slots[curproc_idx].ready = false;
-                    arg_slots[soren::MAX_NSLOTS - 1].procs += 1;
+                    // arg_slots[soren::MAX_NSLOTS - 1].procs += 1;
 
                     curproc_idx = (curproc_idx == (soren::MAX_NSLOTS - 1)) ? 0 : curproc_idx + 1;
 
-                    local_slot->footprint = soren::FOOTPRINT_REPLICATED;   // Mark as invalid. 
+                    // local_slot->footprint = soren::FOOTPRINT_REPLICATED;   // Mark as invalid. 
 
                     // SOREN_LOGGER_INFO(worker_logger, "Next offset: ({})", mr_offset);
                 }
