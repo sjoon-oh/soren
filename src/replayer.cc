@@ -223,6 +223,8 @@ int soren::Replayer::doLaunchPlayer(
             arg_sig.store(SIG_READY);   // Let the caller that I am ready.
                                         // If this is not set, the spawner may wait infinitely.
 
+            struct HeaderSlot* prev_hdr = 0;
+
             //
             // -- The main loop starts from here. --
             while (1) {
@@ -310,10 +312,10 @@ int soren::Replayer::doLaunchPlayer(
                                             if (arg_replayf == nullptr) {
                                                 ;
                                             }
-                                            else
+                                            else if (prev_hdr != 0)
                                                 arg_replayf(
-                                                    reinterpret_cast<uint8_t*>(header->mem_addr), 
-                                                    header->mem_size, 
+                                                    reinterpret_cast<uint8_t*>(prev_hdr->mem_addr), 
+                                                    prev_hdr->mem_size, 
                                                     0,
                                                     nullptr);
                                         }
@@ -340,6 +342,8 @@ int soren::Replayer::doLaunchPlayer(
 
                             log_stat->offset = mr_offset;
                             log_stat->n_prop = n_prop;
+
+                            prev_hdr = header;
                         }
                         
                         break;
